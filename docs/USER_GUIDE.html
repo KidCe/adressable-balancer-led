@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Addressable Balancer LED — Quick User Guide</title>
+  <style>
+    :root { --bg:#09111f; --card:#111d30; --soft:#192941; --text:#edf5ff; --muted:#a9bad0; --cyan:#38d9ff; --green:#5cf29a; --amber:#ffbf47; --red:#ff5b68; }
+    * { box-sizing:border-box; }
+    body { margin:0; font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; color:var(--text); background:radial-gradient(circle at 90% 0,#18375b 0,transparent 34rem),var(--bg); }
+    main { width:min(100% - 28px,1000px); margin:auto; padding:38px 0 70px; }
+    h1 { margin:0; font-size:clamp(2rem,6vw,4rem); line-height:1.02; letter-spacing:-.04em; }
+    h2 { margin:0 0 18px; font-size:1.55rem; }
+    h3 { margin:0 0 8px; font-size:1.05rem; }
+    p { margin:7px 0; } .muted { color:var(--muted); }
+    .hero { padding:28px; border:1px solid #315071; border-radius:24px; background:#0e1b2dcc; box-shadow:0 24px 60px #0006; }
+    .tag { display:inline-block; margin-bottom:16px; padding:5px 10px; border-radius:999px; color:var(--cyan); background:#173552; font-weight:700; font-size:.78rem; letter-spacing:.08em; text-transform:uppercase; }
+    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+    .card { padding:22px; border:1px solid #263c58; border-radius:18px; background:var(--card); }
+    section { margin-top:34px; }
+    .steps { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; counter-reset:step; }
+    .step { position:relative; min-height:135px; padding:48px 17px 17px; border-radius:16px; background:var(--soft); }
+    .step:before { counter-increment:step; content:counter(step); position:absolute; top:14px; left:17px; width:25px; height:25px; display:grid; place-items:center; border-radius:50%; color:#07131d; background:var(--cyan); font-weight:900; }
+    .buttons { display:flex; gap:18px; align-items:center; justify-content:center; padding:24px 0 8px; }
+    .button { width:112px; height:70px; display:grid; place-items:center; border:2px solid #5a7698; border-bottom-width:7px; border-radius:15px; color:var(--text); background:linear-gradient(#253b56,#17283e); font:inherit; font-weight:800; cursor:pointer; user-select:none; touch-action:none; }
+    .button:active,.button.pressed { transform:translateY(4px); border-bottom-width:3px; }
+    .button small { display:block; color:var(--muted); font-weight:500; }
+    .timeline { display:flex; align-items:center; gap:8px; margin:15px 0 4px; }
+    .line { height:10px; flex:1; min-width:50px; border-radius:8px; background:#2c4665; overflow:hidden; }
+    .fill5 { width:50%; height:100%; background:var(--green); } .fill10 { width:100%; height:100%; background:var(--amber); }
+    .bar { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; margin:16px 0; }
+    .led { height:30px; border-radius:7px; background:#253348; box-shadow:inset 0 0 0 1px #ffffff12; }
+    .sim { margin-top:18px; padding:18px; border-radius:18px; background:#07101dcc; border:1px solid #284662; }
+    .sim[hidden] { display:none; }
+    .sim-controls { display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:center; }
+    .power { padding:9px 14px; border:1px solid #4e7196; border-radius:10px; color:var(--text); background:#19304a; cursor:pointer; font-weight:800; }
+    input[type=range] { width:100%; accent-color:var(--cyan); }
+    .sim-status { min-height:24px; color:var(--cyan); font-weight:700; text-align:center; }
+    .red { background:var(--red); } .amber { background:var(--amber); } .green { background:var(--green); }
+    .flow { display:flex; align-items:stretch; gap:8px; overflow-x:auto; padding-bottom:5px; }
+    .node { min-width:150px; flex:1; padding:14px; border-radius:13px; background:var(--soft); text-align:center; }
+    .arrow { align-self:center; color:var(--cyan); font-size:1.6rem; }
+    .callout { padding:16px 18px; border-left:4px solid var(--amber); border-radius:8px; background:#3b2c173d; }
+    table { width:100%; border-collapse:collapse; }
+    th,td { padding:11px 10px; border-bottom:1px solid #29405c; text-align:left; vertical-align:top; }
+    th { color:var(--cyan); font-size:.82rem; text-transform:uppercase; letter-spacing:.05em; }
+    .pill { display:inline-block; padding:3px 8px; border-radius:99px; background:#203854; font-size:.82rem; font-weight:700; }
+    footer { margin-top:38px; color:#7f94ae; text-align:center; font-size:.86rem; }
+    .credits { display:block; margin-top:9px; color:#53677f; font-size:.67rem; opacity:.72; }
+    .credits a { color:inherit; text-decoration:none; }
+    .credits a:hover,.credits a:focus { color:var(--cyan); text-decoration:underline; }
+    @media (max-width:700px) { .grid,.steps { grid-template-columns:1fr; } .flow { flex-direction:column; } .arrow { transform:rotate(90deg); } main { width:min(100% - 18px,1000px); } .hero,.card { padding:18px; } .sim-controls { grid-template-columns:1fr; } }
+    @media print { body { background:white; color:#111; } .hero,.card,.step,.node { background:#f3f6fa; border-color:#bbb; box-shadow:none; } .muted,footer { color:#555; } main { width:100%; padding:0; } }
+  </style>
+</head>
+<body>
+<main>
+  <header class="hero">
+    <span class="tag">Quick start</span>
+    <h1>Addressable Balancer LED</h1>
+    <p class="muted">Color lighting, live battery indication, field calibration, and a dedicated battery-checker mode—all controlled with two buttons.</p>
+    <div class="buttons" id="sim-buttons" aria-label="Interactive button controls">
+      <button class="button" id="sim-b1" type="button">Button 1<small>next color</small></button>
+      <button class="button" id="sim-b2" type="button">Button 2<small>previous color</small></button>
+    </div>
+  </header>
+
+  <section>
+    <h2>Everyday use</h2>
+    <div class="steps">
+      <div class="step"><h3>Connect power</h3><p>The LEDs perform a white sweep, then show the battery level.</p></div>
+      <div class="step"><h3>Read the bar</h3><p>Red means low, amber is the middle range, and green is near full.</p></div>
+      <div class="step"><h3>Choose a color</h3><p>Tap Button 1 or Button 2. Leave the color selected for one second and it is remembered after power is removed.</p></div>
+    </div>
+  </section>
+
+  <section class="grid">
+    <article class="card" id="battery-card">
+      <h2>Battery bar</h2>
+      <div class="bar" id="sim-display" aria-label="Seven segment battery bar and simulated LED display"><span class="led red"></span><span class="led red"></span><span class="led amber"></span><span class="led amber"></span><span class="led amber"></span><span class="led green"></span><span class="led green"></span></div>
+      <div class="sim" id="sim-panel" hidden aria-label="Interactive product simulation controls">
+        <div class="sim-status" id="sim-status">Simulation ready</div>
+        <div class="sim-controls">
+          <button class="power" id="sim-power" type="button">Power: off</button>
+          <label>Battery voltage <input id="sim-voltage" type="range" min="3300" max="4300" value="3900" step="10"></label>
+          <output id="sim-voltage-out">3.90 V</output>
+        </div>
+        <p class="muted" style="text-align:center">The seven blocks above represent mirrored LED pairs. Press and hold the buttons at the top just like the physical product.</p>
+      </div>
+      <p>Seven mirrored positions fill from red through amber to green. The upper end uses your calibrated full voltage.</p>
+      <p class="muted">At a full reading, the LEDs blink green three times instead of holding the bar.</p>
+    </article>
+    <article class="card">
+      <h2>Automatic protection</h2>
+      <table>
+        <tr><th>Voltage</th><th>Behavior</th></tr>
+        <tr><td>Below 3.45 V</td><td>Normal lighting dims and shows a low-battery warning.</td></tr>
+        <tr><td>Below 3.35 V</td><td>The LEDs spend most of their time off and briefly warn in red.</td></tr>
+      </table>
+    </article>
+  </section>
+
+  <section class="card">
+    <h2>Button lock</h2>
+    <p>The buttons lock after 10 seconds without activity so vibration or accidental contact cannot change your color during a flight.</p>
+    <div class="flow" aria-label="Idle lock flow">
+      <div class="node"><strong>10 seconds idle</strong><br><span class="muted">controls lock</span></div><div class="arrow">→</div>
+      <div class="node"><strong>3 quick clicks</strong><br><span class="muted">75–250 ms apart</span></div><div class="arrow">→</div>
+      <div class="node"><strong>Green blink</strong><br><span class="muted">controls unlocked</span></div>
+    </div>
+    <p class="muted">While locked, presses and long holds are ignored. A rejected press briefly blacks out one LED pair so you can see that the controls are locked; battery monitoring continues normally.</p>
+  </section>
+
+  <section class="card">
+    <h2>Armed low-power standby</h2>
+    <p>Connect the battery ahead of time without leaving the main LEDs running. Armed standby remembers your color and brings it back at full brightness with one press.</p>
+    <div class="flow">
+      <div class="node"><strong>Hold either button</strong><br><span class="muted">selected color fades for 2 s</span></div><div class="arrow">→</div>
+      <div class="node"><strong>Release-ready blink</strong><br><span class="muted">two dim LEDs per side</span></div><div class="arrow">→</div>
+      <div class="node"><strong>Release before 5 s</strong><br><span class="muted">armed standby starts</span></div><div class="arrow">→</div>
+      <div class="node"><strong>Press once</strong><br><span class="muted">full brightness returns</span></div>
+    </div>
+    <p>In standby, external LEDs stay off and one mirrored LED pair gives a very dim, slow heartbeat. This keeps the chosen color identifiable while greatly reducing LED power.</p>
+    <p class="muted">Keep holding instead of releasing to use the normal 5-second calibration or 10-second reset.</p>
+  </section>
+
+  <section>
+    <h2>Calibrate the full-battery level</h2>
+    <p>Different batteries and setups can read slightly differently. Calibrating at full charge makes the startup bar and full-battery indication match your own setup.</p>
+    <div class="grid">
+      <article class="card">
+        <span class="pill">Save current voltage</span>
+        <h3 style="margin-top:12px">Hold either button for 5 seconds</h3>
+        <div class="timeline"><span>0</span><div class="line"><div class="fill5"></div></div><span>5 s</span></div>
+        <p>Two short green blinks confirm that the present voltage is now treated as full.</p>
+      </article>
+      <article class="card">
+        <span class="pill">Restore default</span>
+        <h3 style="margin-top:12px">Keep holding for 10 seconds</h3>
+        <div class="timeline"><span>0</span><div class="line"><div class="fill10"></div></div><span>10 s</span></div>
+        <p>Three blinks confirm restoration of the default <strong>4.17 V</strong> full level.</p>
+      </article>
+    </div>
+    <p class="callout"><strong>Important:</strong> after 10 idle seconds, unlock the buttons first. Calibrate only with a properly charged battery. Accepted calibration range: 3.5–5.0 V.</p>
+  </section>
+
+  <section class="card">
+    <h2>Battery checker mode</h2>
+    <p>Use the board as a persistent battery monitor while the same battery powers other equipment. The display stays economical during normal use but becomes increasingly difficult to miss when the battery is nearly empty.</p>
+    <div class="flow">
+      <div class="node"><strong>Hold a button</strong><br><span class="muted">while connecting power</span></div><div class="arrow">→</div>
+      <div class="node"><strong>Normal startup</strong><br><span class="muted">white sweep + battery bar</span></div><div class="arrow">→</div>
+      <div class="node"><strong>Keep holding 2 s</strong><br><span class="muted">release to cancel</span></div><div class="arrow">→</div>
+      <div class="node"><strong>Checker active</strong><br><span class="muted">until power-off</span></div>
+    </div>
+    <div class="grid" style="margin-top:16px">
+      <div><h3>Normal checker display</h3><p>The live battery bar stays very dim to save power. Hold either button to make it gradually brighter for viewing in sunlight; release to return immediately to the power-saving level.</p></div>
+      <div><h3>Low-voltage warning</h3><p>Below 3.45 V the bar dims further. At 3.40 V it changes to a red blink that gradually grows to full brightness over two minutes.</p></div>
+    </div>
+  </section>
+
+  <section class="grid">
+    <article class="card">
+      <h2>What is remembered?</h2>
+      <p>✓ Last selected color</p><p>✓ Calibrated full voltage</p><p>✗ Temporary operating modes after power-off</p>
+    </article>
+    <article class="card">
+      <h2>Quick troubleshooting</h2>
+      <p><strong>Buttons do nothing:</strong> use the three-click unlock.</p>
+      <p><strong>Battery bar seems wrong:</strong> recalibrate at full charge.</p>
+      <p><strong>Checker mode did not start:</strong> hold the button from power-on through the complete startup display and for two more seconds.</p>
+    </article>
+  </section>
+
+  <section class="card">
+    <h2>Optional external LEDs</h2>
+    <p>Need the same lighting on a larger build? The onboard pattern can continue along an external addressable LED chain without changing how the two buttons work.</p>
+    <p>The data output supports up to 64 LEDs. The 14 onboard LEDs remain the main 7+7 mirrored light; positions 15–64 repeat that complete onboard pattern.</p>
+    <p class="callout"><strong>Power separately:</strong> external LEDs need a correctly sized supply and a shared ground. The PCB firmware supplies their data signal, not their power.</p>
+  </section>
+
+  <section class="callout">
+    <strong>A small hint for the curious:</strong> the buttons may respond to more than ordinary taps and long holds. Rhythm matters—but some features are more fun to discover than to document.
+  </section>
+
+  <footer>
+    Addressable Balancer LED · User guide · Firmware behavior may vary with version
+    <small class="credits">Created by KidCe with AI assistance · <a href="https://www.instagram.com/kidce.fpv/" target="_blank" rel="noopener noreferrer">@kidce.fpv</a></small>
+  </footer>
+</main>
+<script>
+(() => {
+  const leds = [...document.querySelectorAll('#sim-display .led')];
+  const simPanel = document.querySelector('#sim-panel');
+  const simDisplay = document.querySelector('#sim-display');
+  const buttonTray = document.querySelector('#sim-buttons');
+  const status = document.querySelector('#sim-status');
+  const powerButton = document.querySelector('#sim-power');
+  const voltage = document.querySelector('#sim-voltage');
+  const voltageOut = document.querySelector('#sim-voltage-out');
+  const buttons = [document.querySelector('#sim-b1'), document.querySelector('#sim-b2')];
+  const colors = ['#ff0000','#ffff00','#00ff00','#00ffff','#0000ff','#ff00ff','#ffffff','#ff0000'];
+  let simulatorActive=false, powered=false, busy=false, checker=false, armed=false, mode=+(localStorage.simMode||0), full=+(localStorage.simFull||4170);
+  let locked=false, idleTimer=0, downAt=[0,0], held=[false,false], unlockTimes=[], rapidTimes=[];
+  let special=-1, specialTimer=0, checkerTimer=0, armedTimer=0, holdTimer=0, saveTimer=0, warningSince=0, specialArmedAt=0, specialClicks=[];
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+  const volts=()=>+voltage.value;
+  const setStatus=t=>status.textContent=t;
+  function showDocumentationBar(){const demo=['#ff5b68','#ff5b68','#ffbf47','#ffbf47','#ffbf47','#5cf29a','#5cf29a'];leds.forEach((x,i)=>{x.style.background=demo[i];x.style.boxShadow='inset 0 0 0 1px #ffffff12'})}
+  function revealSimulator(){if(simulatorActive)return;simulatorActive=true;simPanel.hidden=false;simDisplay.insertAdjacentElement('afterend',buttonTray);simDisplay.scrollIntoView({behavior:'smooth',block:'center'});powerOn()}
+  function activationClick(){revealSimulator()}
+  const off=()=>leds.forEach(x=>{x.style.background='#253348';x.style.boxShadow='inset 0 0 0 1px #ffffff12'});
+  const showAll=c=>leds.forEach(x=>{x.style.background=c;x.style.boxShadow=`0 0 14px ${c}88`});
+  function showAllScaled(c,level){const n=c.match(/[a-f\d]{2}/gi).map(x=>Math.round(parseInt(x,16)*level));const rgb=`rgb(${n.join(' ')})`;leds.forEach(x=>{x.style.background=rgb;x.style.boxShadow=`0 0 10px rgb(${n.join(' ')} / .45)`})}
+  const wheel=h=>`hsl(${((h%360)+360)%360} 100% 50%)`;
+  function bar(bright=1){
+    const v=volts(), low=3450, range=Math.max(1,full-low);
+    const n=v<=low?0:v>=full?7:Math.min(7,Math.ceil((v-low)*7/range)); off();
+    leds.forEach((x,i)=>{if(i<n){const c=i<2?'255 91 104':i<5?'255 191 71':'92 242 154';x.style.background=`rgb(${c} / ${bright})`;x.style.boxShadow=`0 0 12px rgb(${c} / ${bright*.55})`}});
+  }
+  function normal(){showAll(colors[mode]);setStatus(locked?'Controls locked — use the unlock rhythm':`Color ${mode+1} · controls active`)}
+  function scheduleColorSave(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>{localStorage.simMode=mode;setStatus(`Color ${mode+1} · saved`)},1000)}
+  function resetIdle(){clearTimeout(idleTimer);locked=false;idleTimer=setTimeout(()=>{if(powered&&special<0&&!checker&&!armed){locked=true;setStatus('Controls locked — use the unlock rhythm')}},10000)}
+  async function blink(c,count,on=100,offMs=100){for(let i=0;i<count;i++){showAll(c);await sleep(on);off();await sleep(offMs)}}
+  async function startup(){busy=true;off();setStatus('White startup sweep');for(let i=0;i<7;i++){leds[i].style.background='#dcecff';await sleep(50)};const v=volts();setStatus(`Battery check · ${(v/1000).toFixed(2)} V`);if(v>=full)await blink('#00ff55',3);else{bar();await sleep(750)}busy=false;normal();resetIdle()}
+  function startChecker(){checker=true;warningSince=0;clearTimeout(idleTimer);setStatus('Battery checker mode');clearInterval(checkerTimer);checkerTimer=setInterval(()=>{const v=volts();if(v>3400){warningSince=0;let level=v>=3450?.02:.004+(v-3400)/50*.016;const pressed=held.findIndex(Boolean);if(pressed>=0)level+=Math.min(1,(performance.now()-downAt[pressed])/3000)*(1-level);bar(level);setStatus(`Battery checker · ${(v/1000).toFixed(2)} V${pressed>=0?' · brightness boost':''}`)}else{if(!warningSince)warningSince=performance.now();const level=.02+Math.min(1,(performance.now()-warningSince)/120000)*.98;if(performance.now()%1000<200)showAll(`rgb(255 0 0 / ${level})`);else off();setStatus(`Low-voltage warning · ${(v/1000).toFixed(2)} V`)}},50)}
+  async function powerOn(startHeld=-1){if(powered)return;powered=true;powerButton.textContent='Power: on';await startup();if(startHeld>=0&&held[startHeld]){const until=downAt[startHeld]+2000;while(held[startHeld]&&performance.now()<until){bar();setStatus('Keep holding to enter battery checker…');await sleep(100)}if(held[startHeld])startChecker();else normal()}}
+  function powerOff(){powered=false;busy=false;checker=false;armed=false;locked=false;special=-1;clearTimeout(idleTimer);clearTimeout(saveTimer);clearInterval(specialTimer);clearInterval(checkerTimer);clearInterval(armedTimer);clearInterval(holdTimer);off();powerButton.textContent='Power: off';setStatus('Press either button to power on the simulation')}
+  function unlockClick(now){const gap=unlockTimes.length?now-unlockTimes.at(-1):0;if(!unlockTimes.length||gap<75||gap>250)unlockTimes=[now];else unlockTimes.push(now);if(unlockTimes.length>=3){locked=false;unlockTimes=[];blink('#00ff66',1).then(normal);resetIdle()}}
+  function rapidClick(now){const gap=rapidTimes.length?now-rapidTimes.at(-1):0;if(!rapidTimes.length||gap>150)rapidTimes=[now];else rapidTimes.push(now);if(rapidTimes.length>=10){rapidTimes=[];startSpecial(0)}}
+  function drawSpecial(){
+    const now=performance.now();
+    if(special===0){const p=(now%1000)*.36;leds.forEach((x,i)=>x.style.background=wheel(p+i*11.25))}
+    else if(special===1){if(Math.floor(now/100)%2){off()}else{const h=Math.random()*360;leds.slice(0,4).forEach(x=>x.style.background=wheel(h));leds.slice(4).forEach(x=>x.style.background=wheel(h+180))}}
+    else if(Math.floor(now/60)%2)off();else showAll('#ffffff');
+  }
+  function startSpecial(next){clearTimeout(saveTimer);special=next;specialClicks=[];specialArmedAt=performance.now()+300;clearInterval(specialTimer);specialTimer=setInterval(drawSpecial,20);setStatus(['A colorful surprise','A contrasting surprise','A bright surprise'][special])}
+  function specialClick(now){if(now<specialArmedAt)return;const gap=specialClicks.length?now-specialClicks.at(-1):0;if(!specialClicks.length||gap>150)specialClicks=[now];else specialClicks.push(now);if(specialClicks.length>=3)startSpecial((special+1)%3)}
+  function startArmed(){armed=true;clearTimeout(idleTimer);off();setStatus('Armed low-power standby');clearInterval(armedTimer);armedTimer=setInterval(()=>{const p=performance.now()%1100;const on=p<50||(p>=300&&p<350);off();leds.forEach(x=>x.style.opacity='1');if(on){leds[0].style.background=colors[mode];leds[0].style.opacity='.08'}},10)}
+  function startHoldPreview(){clearInterval(holdTimer);holdTimer=setInterval(()=>{if(!powered||busy||checker||armed||special>=0||locked)return;const pressed=held.findIndex(Boolean);if(pressed<0)return;const elapsed=performance.now()-downAt[pressed];leds.forEach(x=>x.style.opacity='1');if(elapsed<2000)showAllScaled(colors[mode],Math.max(0,1-elapsed/2000));else if(elapsed<5000){off();if(Math.floor((elapsed-2000)/100)%5===0){leds[0].style.background=colors[mode];leds[1].style.background=colors[mode];leds[0].style.opacity=leds[1].style.opacity='.12'}}},50)}
+  async function release(index,duration){
+    const now=performance.now();
+    clearInterval(holdTimer);leds.forEach(x=>x.style.opacity='1');
+    if(!powered){await powerOn();return} if(busy||checker)return;
+    if(armed){armed=false;clearInterval(armedTimer);normal();resetIdle();return}
+    if(special>=0){specialClick(now);return}
+    if(locked){normal();leds[0].style.background='#253348';unlockClick(now);setTimeout(()=>{if(locked)normal()},300);return}
+    resetIdle();
+    if(duration>=10000){full=4170;localStorage.simFull=full;await blink('#00ff66',3);normal();return}
+    if(duration>=5000){full=volts();localStorage.simFull=full;await blink('#00ff66',2);normal();return}
+    if(duration>=2000){await blink(colors[mode],2,70,70);startArmed();return}
+    mode=(mode+(index?7:1))%8;normal();scheduleColorSave();rapidClick(now)
+  }
+  buttons.forEach((b,i)=>{
+    b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture(e.pointerId);b.classList.add('pressed');held[i]=true;downAt[i]=performance.now();if(simulatorActive&&!powered)powerOn(i);else if(simulatorActive)startHoldPreview()});
+    b.addEventListener('pointerup',e=>{b.classList.remove('pressed');held[i]=false;const now=performance.now();if(!simulatorActive){activationClick();return}release(i,now-downAt[i])});
+    b.addEventListener('pointercancel',()=>{b.classList.remove('pressed');held[i]=false});
+  });
+  powerButton.addEventListener('click',()=>powered?powerOff():powerOn());
+  voltage.addEventListener('input',()=>{voltageOut.value=`${(volts()/1000).toFixed(2)} V`;if(powered&&!busy&&special<0&&status.textContent.startsWith('Battery'))bar()});
+  showDocumentationBar();
+})();
+</script>
+</body>
+</html>
