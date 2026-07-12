@@ -16,7 +16,7 @@ The board drives 14 onboard WS2812-compatible LEDs as a mirrored 7+7 main light,
 - Armed low-power standby for connecting a battery before use
 - Automatic button lock to avoid changes caused by vibration
 - Data output extended to 64 LED positions
-- Standalone interactive [user guide](USER_GUIDE.html)
+- Standalone interactive [user guide](https://kidce.github.io/adressable-balancer-led/USER_GUIDE.html)
 
 ## Basic operation
 
@@ -31,7 +31,7 @@ The board drives 14 onboard WS2812-compatible LEDs as a mirrored 7+7 main light,
 | Continue holding for 10 seconds | Restore the default 4.17 V full level |
 | Hold a button from power-up through startup and for 2 more seconds | Enter battery checker mode |
 
-See [USER_GUIDE.html](USER_GUIDE.html) for diagrams, detailed behavior, and the interactive simulator.
+See the live [interactive user guide](https://kidce.github.io/adressable-balancer-led/USER_GUIDE.html) for diagrams, detailed behavior, and the interactive simulator.
 
 ## Hardware
 
