@@ -26,7 +26,7 @@
     h3 { margin:0 0 8px; font-size:1.05rem; }
     p { margin:7px 0; } .muted { color:var(--muted); }
     .hero { padding:28px; border:1px solid var(--border); border-radius:24px; background:var(--hero-bg); box-shadow:0 24px 60px rgba(0,0,0,0.4); }
-    #site-logo { width:var(--logo-size); height:var(--logo-size); object-fit:contain; margin-left:14px; }
+    #site-logo { display:block; width:100%; height:100%; object-fit:contain; border-radius:6px; }
     .theme-toggle { margin-left:12px; padding:6px 8px; border-radius:10px; border:1px solid var(--border); background:transparent; color:var(--text); cursor:pointer; }
     .tag { display:inline-block; margin-bottom:16px; padding:5px 10px; border-radius:999px; color:var(--cyan); background:var(--tag-bg,#173552); font-weight:700; font-size:.78rem; letter-spacing:.08em; text-transform:uppercase; }
     .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
@@ -247,7 +247,7 @@
     Addressable Balancer LED · User guide · Firmware behavior may vary with version
     <div style="margin-top:8px;display:flex;align-items:center;justify-content:center;gap:12px;">
       <a class="logo-footer" href="https://www.instagram.com/kidce.fpv/" target="_blank" rel="noopener noreferrer">
-        <img id="site-logo" src="assets/logo.png" alt="KidCe Instagram" onerror="this.style.display='none'" style="width:100%;height:100%;object-fit:contain;border-radius:6px;">
+        <img id="site-logo" src="assets/logo.png" alt="KidCe Instagram">
       </a>
       <small class="credits">Created by KidCe with AI assistance · <a href="https://www.instagram.com/kidce.fpv/" target="_blank" rel="noopener noreferrer">@kidce.fpv</a></small>
     </div>
@@ -283,7 +283,7 @@
   const voltage = document.querySelector('#sim-voltage');
   const voltageOut = document.querySelector('#sim-voltage-out');
   const buttons = [document.querySelector('#sim-b1'), document.querySelector('#sim-b2')];
-  const colors = ['#ff0000','#ffff00','#00ff00','#00ffff','#0000ff','#ff00ff','#ffffff','#ff0000'];
+  const colors = ['#ff0000','#ff7800','#ffff00','#00ff00','#00ffff','#0000ff','#ff00ff','#ffffff'];
   let simulatorActive=false, powered=false, busy=false, checker=false, armed=false, mode=+(localStorage.simMode||0), full=+(localStorage.simFull||4170);
   let locked=false, idleTimer=0, downAt=[0,0], held=[false,false], unlockTimes=[], rapidTimes=[];
   let special=-1, specialTimer=0, checkerTimer=0, armedTimer=0, holdTimer=0, saveTimer=0, warningSince=0, specialArmedAt=0, specialClicks=[];
@@ -297,7 +297,9 @@
   const showAll=c=>leds.forEach(x=>{x.style.background=c;x.style.boxShadow=`0 0 14px ${c}88`});
   function showAllScaled(c,level){const n=c.match(/[a-f\d]{2}/gi).map(x=>Math.round(parseInt(x,16)*level));const rgb=`rgb(${n.join(' ')})`;leds.forEach(x=>{x.style.background=rgb;x.style.boxShadow=`0 0 10px rgb(${n.join(' ')} / .45)`})}
   const wheel=h=>`hsl(${((h%360)+360)%360} 100% 50%)`;
+  const visibleBrightness=level=>level<=0?0:.25+level*.75;
   function bar(bright=1){
+    bright=visibleBrightness(bright);
     const v=volts(), low=3450, range=Math.max(1,full-low);
     const n=v<=low?0:v>=full?7:Math.min(7,Math.ceil((v-low)*7/range)); off();
     leds.forEach((x,i)=>{if(i<n){const c=i<2?'255 91 104':i<5?'255 191 71':'92 242 154';x.style.background=`rgb(${c} / ${bright})`;x.style.boxShadow=`0 0 12px rgb(${c} / ${bright*.55})`}});
@@ -320,7 +322,7 @@
   }
   function startSpecial(next){clearTimeout(saveTimer);special=next;specialClicks=[];specialArmedAt=performance.now()+300;clearInterval(specialTimer);specialTimer=setInterval(drawSpecial,20);setStatus(['A colorful surprise','A contrasting surprise','A bright surprise'][special])}
   function specialClick(now){if(now<specialArmedAt)return;const gap=specialClicks.length?now-specialClicks.at(-1):0;if(!specialClicks.length||gap>150)specialClicks=[now];else specialClicks.push(now);if(specialClicks.length>=3)startSpecial((special+1)%3)}
-  function startArmed(){armed=true;clearTimeout(idleTimer);off();setStatus('Armed low-power standby');clearInterval(armedTimer);armedTimer=setInterval(()=>{const p=performance.now()%1100;const on=p<50||(p>=300&&p<350);off();leds.forEach(x=>x.style.opacity='1');if(on){leds[0].style.background=colors[mode];leds[0].style.opacity='.08'}},10)}
+  function startArmed(){armed=true;clearTimeout(idleTimer);off();setStatus('Armed low-power standby');clearInterval(armedTimer);armedTimer=setInterval(()=>{const p=performance.now()%1100;const on=p<50||(p>=300&&p<350);off();leds.forEach(x=>x.style.opacity='1');if(on){leds[0].style.background=colors[mode];leds[0].style.opacity='.35';leds[0].style.boxShadow=`0 0 10px ${colors[mode]}88`}},10)}
   function startHoldPreview(){clearInterval(holdTimer);holdTimer=setInterval(()=>{if(!powered||busy||checker||armed||special>=0||locked)return;const pressed=held.findIndex(Boolean);if(pressed<0)return;const elapsed=performance.now()-downAt[pressed];leds.forEach(x=>x.style.opacity='1');if(elapsed<2000)showAllScaled(colors[mode],Math.max(0,1-elapsed/2000));else if(elapsed<5000){off();if(Math.floor((elapsed-2000)/100)%5===0){leds[0].style.background=colors[mode];leds[1].style.background=colors[mode];leds[0].style.opacity=leds[1].style.opacity='.12'}}},50)}
   async function release(index,duration){
     const now=performance.now();
