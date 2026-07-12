@@ -217,42 +217,19 @@
   </section>
 
   <section class="card">
-    <h2>Color reference</h2>
-    <p>Betaflight provides a 16-color palette (0–15). Below are the default color names, their Betaflight index, and a small swatch. L6 and L7 are reserved here for the two additional colors used by this product.</p>
+    <h2>Color reference (firmware)</h2>
+    <p>The firmware exposes eight selectable color profiles. Below are the RGB values (from `main.c`) and the corresponding Betaflight color indices.</p>
     <table>
-      <thead><tr><th>Swatch</th><th>Name</th><th>Index</th><th>Notes</th></tr></thead>
+      <thead><tr><th>Swatch</th><th>Name</th><th>RGB</th><th>Betaflight index</th></tr></thead>
       <tbody>
-        <tr><td style="width:6rem"><span style="display:inline-block;width:40px;height:18px;background:#000;border-radius:4px;border:1px solid #333"></span></td><td>BLACK</td><td>0</td><td>off / black</td></tr>
-        <tr><td><span style="display:inline-block;width:40px;height:18px;background:#fff;border-radius:4px;border:1px solid #ddd"></span></td><td>WHITE</td><td>1</td><td></td></tr>
-        <tr><td><span style="display:inline-block;width:40px;height:18px;background:#ff0000;border-radius:4px;border:1px solid #6b0000"></span></td><td>RED</td><td>2</td><td></td></tr>
-        <tr><td><span style="display:inline-block;width:40px;height:18px;background:#ff8000;border-radius:4px;border:1px solid #7a4400"></span></td><td>ORANGE</td><td>3</td><td></td></tr>
-        <tr><td><span style="display:inline-block;width:40px;height:18px;background:#ffff00;border-radius:4px;border:1px solid #aaaa00"></span></td><td>YELLOW</td><td>4</td><td></td></tr>
-        <tr><td><span style="display:inline-block;width:40px;height:18px;background:#bfff00;border-radius:4px;border:1px solid #6b8c00"></span></td><td>LIME_GREEN</td><td>5</td><td></td></tr>
-        <tr><td><span style="display:inline-block;width:40px;height:18px;background:#00ff00;border-radius:4px;border:1px solid #007a00"></span></td><td>GREEN</td><td>6</td><td></td></tr>
-        <tr><td><span style="display:inline-block;width:40px;height:18px;background:#66ffb3;border-radius:4px;border:1px solid #2f7a52"></span></td><td>MINT_GREEN</td><td>7</td><td></td></tr>
-        <tr><td><span style="display:inline-block;width:40px;height:18px;background:#00ffff;border-radius:4px;border:1px solid #008b8b"></span></td><td>CYAN</td><td>8</td><td></td></tr>
-        <tr><td><span style="display:inline-block;width:40px;height:18px;background:#6699ff;border-radius:4px;border:1px solid #2f4f9a"></span></td><td>LIGHT_BLUE</td><td>9</td><td></td></tr>
-        <tr><td><span style="display:inline-block;width:40px;height:18px;background:#0000ff;border-radius:4px;border:1px solid #00006b"></span></td><td>BLUE</td><td>10</td><td></td></tr>
-        <tr><td><span style="display:inline-block;width:40px;height:18px;background:#8000ff;border-radius:4px;border:1px solid #3d006b"></span></td><td>DARK_VIOLET</td><td>11</td><td></td></tr>
-        <tr><td><span style="display:inline-block;width:40px;height:18px;background:#ff00ff;border-radius:4px;border:1px solid #7a007a"></span></td><td>MAGENTA</td><td>12</td><td></td></tr>
-        <tr><td><span style="display:inline-block;width:40px;height:18px;background:#ff3399;border-radius:4px;border:1px solid #7a003f"></span></td><td>DEEP_PINK</td><td>13</td><td></td></tr>
-        <tr><td><span style="display:inline-block;width:40px;height:18px;background:#cccccc;border-radius:4px;border:1px solid #999"></span></td><td>L6 (custom)</td><td>14</td><td>Product-specific</td></tr>
-        <tr><td><span style="display:inline-block;width:40px;height:18px;background:#aaaaaa;border-radius:4px;border:1px solid #888"></span></td><td>L7 (custom)</td><td>15</td><td>Product-specific</td></tr>
-      </tbody>
-    </table>
-    <h3 style="margin-top:12px">VTx frequency → Race color (Betaflight)</h3>
-    <p class="muted">Taken from the Betaflight docs: RACE profile maps VTx frequency ranges to colors.</p>
-    <table>
-      <thead><tr><th>Frequency (MHz)</th><th>Color</th><th>Betaflight index</th></tr></thead>
-      <tbody>
-        <tr><td>&le; 5672</td><td>WHITE</td><td>1</td></tr>
-        <tr><td>>5672 &le; 5711</td><td>RED</td><td>2</td></tr>
-        <tr><td>>5711 &le; 5750</td><td>ORANGE</td><td>3</td></tr>
-        <tr><td>>5750 &le; 5789</td><td>YELLOW</td><td>4</td></tr>
-        <tr><td>>5789 &le; 5829</td><td>GREEN</td><td>6</td></tr>
-        <tr><td>>5829 &le; 5867</td><td>BLUE</td><td>10</td></tr>
-        <tr><td>>5867 &le; 5906</td><td>DARK VIOLET</td><td>11</td></tr>
-        <tr><td>>5906</td><td>DEEP PINK</td><td>13</td></tr>
+        <tr><td style="width:6rem"><span style="display:inline-block;width:40px;height:18px;background:rgb(255,0,0);border-radius:4px;border:1px solid #6b0000"></span></td><td>RED</td><td>255, 0, 0</td><td>2</td></tr>
+        <tr><td><span style="display:inline-block;width:40px;height:18px;background:rgb(255,120,0);border-radius:4px;border:1px solid #7a4400"></span></td><td>ORANGE</td><td>255, 120, 0</td><td>3</td></tr>
+        <tr><td><span style="display:inline-block;width:40px;height:18px;background:rgb(255,255,0);border-radius:4px;border:1px solid #aaaa00"></span></td><td>YELLOW</td><td>255, 255, 0</td><td>4</td></tr>
+        <tr><td><span style="display:inline-block;width:40px;height:18px;background:rgb(0,255,0);border-radius:4px;border:1px solid #007a00"></span></td><td>GREEN</td><td>0, 255, 0</td><td>6</td></tr>
+        <tr><td><span style="display:inline-block;width:40px;height:18px;background:rgb(0,255,255);border-radius:4px;border:1px solid #008b8b"></span></td><td>CYAN</td><td>0, 255, 255</td><td>8</td></tr>
+        <tr><td><span style="display:inline-block;width:40px;height:18px;background:rgb(0,0,255);border-radius:4px;border:1px solid #00006b"></span></td><td>BLUE</td><td>0, 0, 255</td><td>10</td></tr>
+        <tr><td><span style="display:inline-block;width:40px;height:18px;background:rgb(255,0,255);border-radius:4px;border:1px solid #7a007a"></span></td><td>MAGENTA</td><td>255, 0, 255</td><td>12</td></tr>
+        <tr><td><span style="display:inline-block;width:40px;height:18px;background:rgb(255,255,255);border-radius:4px;border:1px solid #ddd"></span></td><td>WHITE</td><td>255, 255, 255</td><td>1</td></tr>
       </tbody>
     </table>
   </section>
