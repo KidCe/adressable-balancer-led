@@ -38,34 +38,35 @@ See the live [interactive user guide](https://kidce.github.io/adressable-balance
 ## Hardware and connections
 
 - MCU: Puya PY32F002Bx5 (Cortex-M0+)
-- Onboard LEDs: 14 addressable RGB LEDs (implemented as mirrored pairs)
+- Onboard LEDs: 14 addressable RGB LEDs (dual-sided lighting)
 - LED data pin: PA7 / SPI1
 - Buttons: two pads are present on the PCB (PA6 and PA5). The shipped PCB currently uses a single working button — the second pad was manually disabled on this hardware revision.
 - Battery measurement: internal VREFINT via ADC
 
 Power and external LEDs
 
-- The board is designed to run directly from a single-cell (1S) LiPo. For normal racing use this is safe because the motors draw orders of magnitude more current than the LEDs, so LED current does not significantly affect battery voltage during flight.
-- External addressable LEDs can be connected to the three solder pads labeled for data, power, and ground. The board provides the data signal; external LEDs should be powered from a suitably sized supply and share ground with the board. No separate data-level shifting or external supply is required for small chains, but large LED strips must have their own power.
-- The firmware outputs up to 64 LED positions: onboard LEDs occupy the first 14 positions and the remainder repeat that pattern.
+- The board is designed to run directly from a single-cell (1S) LiPo. In typical racing use the additional current drawn by the LEDs is imperceptible and effectively negligible compared to the motors. Example calculation:
+
+	- 6S 1500 mAh race pack ≈ 25.2 V nominal → 1.5 Ah → energy ≈ 37.8 Wh.
+	- If that pack is emptied in ≈90 s (0.025 h), the average flight power is ≈ 37.8 Wh / 0.025 h ≈ 1,512 W.
+	- Fourteen WS2812-type LEDs at full white draw ≈ 60 mA each at ≈5 V → ≈4 W total.
+	- LED draw ≈ 4 W / 1,512 W ≈ 0.25% of flight power — imperceptible in flight and effectively negligible.
+
+- External addressable LEDs may be attached to the three solder pads (data, +V, GND). The external LEDs run from the same 1S voltage as the onboard LEDs (no separate external supply is required for small chains).
 
 Control and buttons
 
 - All user features are designed to be accessible from a single button when needed. The second button is present on the schematic but may be disconnected on some boards; features remain reachable via the primary control.
-- Button lockup prevents accidental changes from vibration during flight — after an idle timeout the controls lock and must be explicitly unlocked (three quick clicks) before accepting further input.
+- Button lock prevents accidental changes from vibration during flight — after an idle timeout the controls lock and must be explicitly unlocked (three quick clicks) before accepting further input.
 
 Color profiles
 
-- The color profiles follow the common FAI / Betaflight assignments: R1, R2, F2, F4, R7, R8, and two additional colors for low-band 6 and 7. These six (plus two extended) profiles cover the standard competition and band needs.
+- The color profiles follow the common FAI / Betaflight assignments: R1, R2, F2, F4, R7, R8, plus two additional colors for low-band 6 and 7. These cover the standard competition and band needs.
 
 Flashing and programming
 
-- Programming uses a 1.27 mm pogo-pin connector. Minimum required for SWD programming is 4 pins (SWCLK, SWDIO, GND, VCC). A 7-pin connector is recommended if you want reset and UART (RX/TX) available for future features such as a UART bootloader or passthrough via Betaflight.
-- I used a low-cost J-Link OB (V8) with USB‑C from marketplaces for flashing; ST-Link and other ARM programmers that support SWD should also work.
-
-Notes
-
-- The README previously listed flash and SRAM sizes; that low-level detail has been removed here because it is not required for everyday use of the board.
+- Programming uses a 1.27 mm pogo-pin connector. Four pins (SWCLK, SWDIO, GND, VCC) are the minimum for SWD programming; a 7-pin connector is useful if you want reset and UART (RX/TX) available for future features such as a UART bootloader or Betaflight passthrough.
+- Common tools (J-Link OB, ST-Link) work for flashing; a low-cost J-Link OB V8 with USB‑C has been used successfully for testing.
 
 ## Building
 

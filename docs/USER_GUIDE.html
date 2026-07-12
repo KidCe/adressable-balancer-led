@@ -85,7 +85,7 @@
           <label>Battery voltage <input id="sim-voltage" type="range" min="3300" max="4300" value="3900" step="10"></label>
           <output id="sim-voltage-out">3.90 V</output>
         </div>
-        <p class="muted" style="text-align:center">The seven blocks above represent mirrored LED pairs. Press and hold the buttons at the top just like the physical product.</p>
+        <p class="muted" style="text-align:center">The seven blocks above represent dual-sided LED positions. Press and hold the buttons at the top just like the physical product.</p>
       </div>
       <p>Seven mirrored positions fill from red through amber to green. The upper end uses your calibrated full voltage.</p>
       <p class="muted">At a full reading, the LEDs blink green three times instead of holding the bar.</p>
@@ -176,7 +176,12 @@
     <h2>Optional external LEDs</h2>
     <p>Need the same lighting on a larger build? The onboard pattern can continue along an external addressable LED chain without changing how the two buttons work.</p>
     <p>The data output supports up to 64 LEDs. The 14 onboard LEDs remain the main 7+7 mirrored light; positions 15–64 repeat that complete onboard pattern.</p>
-    <p class="callout"><strong>Power separately:</strong> external LEDs need a correctly sized supply and a shared ground. The PCB firmware supplies their data signal, not their power.</p>
+      <p class="callout"><strong>Power note:</strong> external LEDs connect to the data, +V and GND pads and run from the same 1S voltage as the onboard LEDs. Small chains do not require a separate supply; large strips may still need additional wiring for current handling.</p>
+  </section>
+
+  <section class="card">
+    <h2>Power & external connections</h2>
+    <p>In typical racing use the extra current draw from the LEDs is imperceptible and effectively negligible compared to motor draw. Example: a 6S 1500 mAh race pack emptied in ≈90 s implies average flight power around 1.5 kW, while 14 full-white LEDs consume ≈4 W (~0.25% of flight power).</p>
   </section>
 
   <section class="card">
