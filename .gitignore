@@ -1,0 +1,16 @@
+# Keil build products
+Objects/
+Listings/
+*.uvguix.*
+
+# Debugger logs and local state
+JLinkLog.txt
+*.bak
+*.tmp
+
+# Generated release packages
+release/
+
+# OS/editor files
+.DS_Store
+Thumbs.db

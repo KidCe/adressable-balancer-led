@@ -1,0 +1,74 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Keil: Build",
+            "type": "process",
+            "command": "C:\\Users\\NKits\\AppData\\Local\\Keil_v5\\UV4\\UV4.exe",
+            "args": [
+                "-b",
+                "${workspaceFolder}\\AdressableBalancerLEDPY32F002b.uvprojx",
+                "-t",
+                "Target 1",
+                "-j0"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": true
+            }
+        },
+        {
+            "label": "Keil: Rebuild",
+            "type": "process",
+            "command": "C:\\Users\\NKits\\AppData\\Local\\Keil_v5\\UV4\\UV4.exe",
+            "args": [
+                "-r",
+                "${workspaceFolder}\\AdressableBalancerLEDPY32F002b.uvprojx",
+                "-t",
+                "Target 1",
+                "-j0"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": true
+            }
+        },
+        {
+            "label": "PY32: Flash",
+            "type": "process",
+            "command": "C:\\Users\\NKits\\AppData\\Local\\Keil_v5\\UV4\\UV4.exe",
+            "args": [
+                "-f",
+                "${workspaceFolder}\\AdressableBalancerLEDPY32F002b.uvprojx",
+                "-t",
+                "Target 1",
+                "-j0"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "dependsOn": "Keil: Build",
+            "dependsOrder": "sequence",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": true
+            }
+        }
+    ]
+}
