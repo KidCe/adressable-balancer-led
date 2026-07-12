@@ -35,24 +35,37 @@ See the live [interactive user guide](https://kidce.github.io/adressable-balance
 
 ## Hardware
 
-- MCU: Puya PY32F002Bx5, Cortex-M0+, 24 MHz
-- Flash: 24 KB
-- SRAM: 3 KB
-- Onboard LEDs: 14 addressable RGB LEDs
-- LED data: PA7 / SPI1
-- Buttons: PA6 and PA5, active low with internal pull-ups
-- Battery measurement: internal VREFINT through ADC
+## Hardware and connections
 
-The firmware transmits 64 LED positions. Positions 1–14 are the onboard pattern; positions 15–64 repeat that complete pattern. External LEDs require a suitable external supply and a shared ground. Do not power a large external strip through an undersized board supply.
+- MCU: Puya PY32F002Bx5 (Cortex-M0+)
+- Onboard LEDs: 14 addressable RGB LEDs (implemented as mirrored pairs)
+- LED data pin: PA7 / SPI1
+- Buttons: two pads are present on the PCB (PA6 and PA5). The shipped PCB currently uses a single working button — the second pad was manually disabled on this hardware revision.
+- Battery measurement: internal VREFINT via ADC
 
-## Flash layout
+Power and external LEDs
 
-| Address range | Purpose |
-|---|---|
-| `0x08000000–0x08004FFF` | Application, maximum 20 KB |
-| `0x08005000–0x08005FFF` | Settings journal, 4 KB |
+- The board is designed to run directly from a single-cell (1S) LiPo. For normal racing use this is safe because the motors draw orders of magnitude more current than the LEDs, so LED current does not significantly affect battery voltage during flight.
+- External addressable LEDs can be connected to the three solder pads labeled for data, power, and ground. The board provides the data signal; external LEDs should be powered from a suitably sized supply and share ground with the board. No separate data-level shifting or external supply is required for small chains, but large LED strips must have their own power.
+- The firmware outputs up to 64 LED positions: onboard LEDs occupy the first 14 positions and the remainder repeat that pattern.
 
-The Keil project limits application linking to `0x5000` bytes so code cannot overlap settings.
+Control and buttons
+
+- All user features are designed to be accessible from a single button when needed. The second button is present on the schematic but may be disconnected on some boards; features remain reachable via the primary control.
+- Button lockup prevents accidental changes from vibration during flight — after an idle timeout the controls lock and must be explicitly unlocked (three quick clicks) before accepting further input.
+
+Color profiles
+
+- The color profiles follow the common FAI / Betaflight assignments: R1, R2, F2, F4, R7, R8, and two additional colors for low-band 6 and 7. These six (plus two extended) profiles cover the standard competition and band needs.
+
+Flashing and programming
+
+- Programming uses a 1.27 mm pogo-pin connector. Minimum required for SWD programming is 4 pins (SWCLK, SWDIO, GND, VCC). A 7-pin connector is recommended if you want reset and UART (RX/TX) available for future features such as a UART bootloader or passthrough via Betaflight.
+- I used a low-cost J-Link OB (V8) with USB‑C from marketplaces for flashing; ST-Link and other ARM programmers that support SWD should also work.
+
+Notes
+
+- The README previously listed flash and SRAM sizes; that low-level detail has been removed here because it is not required for everyday use of the board.
 
 ## Building
 

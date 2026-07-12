@@ -179,6 +179,28 @@
     <p class="callout"><strong>Power separately:</strong> external LEDs need a correctly sized supply and a shared ground. The PCB firmware supplies their data signal, not their power.</p>
   </section>
 
+  <section class="card">
+    <h2>Power & external connections</h2>
+    <p>This board is intended to run from a single-cell (1S) LiPo. For racing use the motor currents and rapid battery discharge make LED draw negligible for flight performance — running the lights from 1S is expected and supported.</p>
+    <p>You can attach external addressable LEDs to the three solder pads (data, +V, GND). The board provides the data line; large external LED chains must be powered from an appropriate external supply and share ground with the board.</p>
+  </section>
+
+  <section class="card">
+    <h2>Control, buttons and lock</h2>
+    <p>All features are accessible from the primary button; the second button on some PCBs may be disconnected due to manual hardware changes. The button lock prevents accidental changes caused by vibration — unlock with three quick clicks.</p>
+  </section>
+
+  <section class="card">
+    <h2>Colors and profiles</h2>
+    <p>The color set follows standard FAI/Betaflight assignments (R1, R2, F2, F4, R7, R8) with two additional colors for low-band 6 and 7. The guide describes the basic principle; describing the mirrored 7+7 layout is unnecessary detail for normal operation.</p>
+  </section>
+
+  <section class="card">
+    <h2>Flashing & programming</h2>
+    <p>Programming uses a 1.27 mm pogo-pin connector. Four pins (SWCLK, SWDIO, GND, VCC) are the minimum for SWD programming; a 7-pin connector is useful if you want reset and UART (RX/TX) for features like a future UART bootloader or Betaflight passthrough.</p>
+    <p>Common tools (J-Link OB, ST-Link) work for flashing. A low-cost J-Link OB V8 with USB-C has been used successfully for testing.</p>
+  </section>
+
   <section class="callout">
     <strong>A small hint for the curious:</strong> the buttons may respond to more than ordinary taps and long holds. Rhythm matters—but some features are more fun to discover than to document.
   </section>
