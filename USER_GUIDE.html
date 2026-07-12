@@ -5,7 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Addressable Balancer LED — Quick User Guide</title>
   <style>
-    :root { --bg:#09111f; --card:#111d30; --soft:#192941; --text:#edf5ff; --muted:#a9bad0; --cyan:#38d9ff; --green:#5cf29a; --amber:#ffbf47; --red:#ff5b68; }
+    :root {
+      --bg:#09111f; --card:#111d30; --soft:#192941; --text:#edf5ff; --muted:#a9bad0; --cyan:#38d9ff; --green:#5cf29a; --amber:#ffbf47; --red:#ff5b68;
+      --logo-size:48px;
+      --border:#315071; --card-border:#263c58; --hero-bg:#0e1b2dcc; --button-border:#5a7698; --button-bg:linear-gradient(#253b56,#17283e); --button-text:var(--text); --button-muted:var(--muted);
+      --pill-bg:#203854; --pill-text:var(--text);
+      --logo-frame:rgba(255,255,255,0.06); --logo-bg:transparent; --table-border:#29405c; --line-bg:#2c4665; --led-bg:#253348;
+    }
+    [data-theme="light"] {
+      --bg: #f6f8fb; --card:#ffffff; --soft:#eef3f8; --text:#07101d; --muted:#52667f; --cyan:#0a84ff; --green:#0fa86b; --amber:#d97706; --red:#d14343;
+      --border:#a9bfda; --card-border:#d7e6f3; --hero-bg:linear-gradient(#ffffff,#f3f7fb); --button-border:#ccdff6; --button-bg:linear-gradient(#ffffff,#eef3f8); --button-text:var(--text); --button-muted:var(--muted);
+      --pill-bg:#eef3f8; --pill-text:var(--text);
+      --logo-frame:#ffffff; --logo-bg:#ffffff; --table-border:#ddeaf6; --line-bg:#cddff0; --led-bg:#f1f6fb;
+    }
     * { box-sizing:border-box; }
     body { margin:0; font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; color:var(--text); background:radial-gradient(circle at 90% 0,#18375b 0,transparent 34rem),var(--bg); }
     main { width:min(100% - 28px,1000px); margin:auto; padding:38px 0 70px; }
@@ -13,38 +25,41 @@
     h2 { margin:0 0 18px; font-size:1.55rem; }
     h3 { margin:0 0 8px; font-size:1.05rem; }
     p { margin:7px 0; } .muted { color:var(--muted); }
-    .hero { padding:28px; border:1px solid #315071; border-radius:24px; background:#0e1b2dcc; box-shadow:0 24px 60px #0006; }
-    .tag { display:inline-block; margin-bottom:16px; padding:5px 10px; border-radius:999px; color:var(--cyan); background:#173552; font-weight:700; font-size:.78rem; letter-spacing:.08em; text-transform:uppercase; }
+    .hero { padding:28px; border:1px solid var(--border); border-radius:24px; background:var(--hero-bg); box-shadow:0 24px 60px rgba(0,0,0,0.4); }
+    #site-logo { width:var(--logo-size); height:var(--logo-size); object-fit:contain; margin-left:14px; }
+    .theme-toggle { margin-left:12px; padding:6px 8px; border-radius:10px; border:1px solid var(--border); background:transparent; color:var(--text); cursor:pointer; }
+    .tag { display:inline-block; margin-bottom:16px; padding:5px 10px; border-radius:999px; color:var(--cyan); background:var(--tag-bg,#173552); font-weight:700; font-size:.78rem; letter-spacing:.08em; text-transform:uppercase; }
     .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
-    .card { padding:22px; border:1px solid #263c58; border-radius:18px; background:var(--card); }
+    .card { padding:22px; border:1px solid var(--card-border); border-radius:18px; background:var(--card); }
     section { margin-top:34px; }
     .steps { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; counter-reset:step; }
     .step { position:relative; min-height:135px; padding:48px 17px 17px; border-radius:16px; background:var(--soft); }
-    .step:before { counter-increment:step; content:counter(step); position:absolute; top:14px; left:17px; width:25px; height:25px; display:grid; place-items:center; border-radius:50%; color:#07131d; background:var(--cyan); font-weight:900; }
+    .step:before { counter-increment:step; content:counter(step); position:absolute; top:14px; left:17px; width:25px; height:25px; display:grid; place-items:center; border-radius:50%; color:var(--step-number-color,#07131d); background:var(--cyan); font-weight:900; }
     .buttons { display:flex; gap:18px; align-items:center; justify-content:center; padding:24px 0 8px; }
-    .button { width:112px; height:70px; display:grid; place-items:center; border:2px solid #5a7698; border-bottom-width:7px; border-radius:15px; color:var(--text); background:linear-gradient(#253b56,#17283e); font:inherit; font-weight:800; cursor:pointer; user-select:none; touch-action:none; }
+    .button { width:112px; height:70px; display:grid; place-items:center; border:2px solid var(--button-border); border-bottom-width:7px; border-radius:15px; color:var(--button-text); background:var(--button-bg); font:inherit; font-weight:800; cursor:pointer; user-select:none; touch-action:none; }
     .button:active,.button.pressed { transform:translateY(4px); border-bottom-width:3px; }
-    .button small { display:block; color:var(--muted); font-weight:500; }
+    .button small { display:block; color:var(--button-muted); font-weight:500; }
     .timeline { display:flex; align-items:center; gap:8px; margin:15px 0 4px; }
-    .line { height:10px; flex:1; min-width:50px; border-radius:8px; background:#2c4665; overflow:hidden; }
+    .line { height:10px; flex:1; min-width:50px; border-radius:8px; background:var(--line-bg); overflow:hidden; }
     .fill5 { width:50%; height:100%; background:var(--green); } .fill10 { width:100%; height:100%; background:var(--amber); }
     .bar { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; margin:16px 0; }
-    .led { height:30px; border-radius:7px; background:#253348; box-shadow:inset 0 0 0 1px #ffffff12; }
-    .sim { margin-top:18px; padding:18px; border-radius:18px; background:#07101dcc; border:1px solid #284662; }
+    .led { height:30px; border-radius:7px; background:var(--led-bg); box-shadow:inset 0 0 0 1px rgba(255,255,255,0.07); }
+    .sim { margin-top:18px; padding:18px; border-radius:18px; background:var(--sim-bg,#07101dcc); border:1px solid var(--card-border); }
     .sim[hidden] { display:none; }
     .sim-controls { display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:center; }
-    .power { padding:9px 14px; border:1px solid #4e7196; border-radius:10px; color:var(--text); background:#19304a; cursor:pointer; font-weight:800; }
+    .power { padding:9px 14px; border:1px solid var(--power-border,#4e7196); border-radius:10px; color:var(--text); background:var(--power-bg,#19304a); cursor:pointer; font-weight:800; }
     input[type=range] { width:100%; accent-color:var(--cyan); }
     .sim-status { min-height:24px; color:var(--cyan); font-weight:700; text-align:center; }
     .red { background:var(--red); } .amber { background:var(--amber); } .green { background:var(--green); }
     .flow { display:flex; align-items:stretch; gap:8px; overflow-x:auto; padding-bottom:5px; }
     .node { min-width:150px; flex:1; padding:14px; border-radius:13px; background:var(--soft); text-align:center; }
     .arrow { align-self:center; color:var(--cyan); font-size:1.6rem; }
-    .callout { padding:16px 18px; border-left:4px solid var(--amber); border-radius:8px; background:#3b2c173d; }
+    .callout { padding:16px 18px; border-left:4px solid var(--callout-border,var(--amber)); border-radius:8px; background:var(--callout-bg,rgba(59,44,23,0.24)); }
     table { width:100%; border-collapse:collapse; }
-    th,td { padding:11px 10px; border-bottom:1px solid #29405c; text-align:left; vertical-align:top; }
+    th,td { padding:11px 10px; border-bottom:1px solid var(--table-border,#29405c); text-align:left; vertical-align:top; }
     th { color:var(--cyan); font-size:.82rem; text-transform:uppercase; letter-spacing:.05em; }
-    .pill { display:inline-block; padding:3px 8px; border-radius:99px; background:#203854; font-size:.82rem; font-weight:700; }
+    .pill { display:inline-block; padding:3px 8px; border-radius:99px; background:var(--pill-bg); color:var(--pill-text); font-size:.82rem; font-weight:700; }
+    .logo-footer { display:inline-flex; align-items:center; justify-content:center; width:var(--logo-size); height:var(--logo-size); padding:6px; border-radius:8px; background:var(--logo-bg); box-shadow:0 6px 18px rgba(0,0,0,0.25); border:1px solid var(--logo-frame); }
     footer { margin-top:38px; color:#7f94ae; text-align:center; font-size:.86rem; }
     .credits { display:block; margin-top:9px; color:#53677f; font-size:.67rem; opacity:.72; }
     .credits a { color:inherit; text-decoration:none; }
@@ -56,7 +71,14 @@
 <body>
 <main>
   <header class="hero">
-    <span class="tag">Quick start</span>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span class="tag">Quick start</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">🌙</button>
+      </div>
+    </div>
     <h1>Addressable Balancer LED</h1>
     <p class="muted">Color lighting, live battery indication, field calibration, and a dedicated battery-checker mode—all controlled with two buttons.</p>
     <div class="buttons" id="sim-buttons" aria-label="Interactive button controls">
@@ -207,10 +229,34 @@
 
   <footer>
     Addressable Balancer LED · User guide · Firmware behavior may vary with version
-    <small class="credits">Created by KidCe with AI assistance · <a href="https://www.instagram.com/kidce.fpv/" target="_blank" rel="noopener noreferrer">@kidce.fpv</a></small>
+    <div style="margin-top:8px;display:flex;align-items:center;justify-content:center;gap:12px;">
+      <a class="logo-footer" href="https://www.instagram.com/kidce.fpv/" target="_blank" rel="noopener noreferrer">
+        <img id="site-logo" src="assets/logo.png" alt="KidCe Instagram" onerror="this.style.display='none'" style="width:100%;height:100%;object-fit:contain;border-radius:6px;">
+      </a>
+      <small class="credits">Created by KidCe with AI assistance · <a href="https://www.instagram.com/kidce.fpv/" target="_blank" rel="noopener noreferrer">@kidce.fpv</a></small>
+    </div>
   </footer>
 </main>
 <script>
+// Theme toggle: persists choice in localStorage and respects system preference
+(function(){
+  const btn = document.getElementById('themeToggle');
+  const root = document.documentElement;
+  const stored = localStorage.getItem('ab_led_theme');
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const apply = (theme)=>{
+    if(theme==='light') { document.documentElement.setAttribute('data-theme','light'); btn.textContent='☀️'; }
+    else { document.documentElement.removeAttribute('data-theme'); btn.textContent='🌙'; }
+  };
+  apply(stored || (prefersDark? 'dark':'light'));
+  btn.addEventListener('click',()=>{
+    const current = document.documentElement.getAttribute('data-theme')==='light' ? 'light' : 'dark';
+    const next = current==='light' ? 'dark' : 'light';
+    apply(next);
+    localStorage.setItem('ab_led_theme', next);
+  });
+})();
+
 (() => {
   const leds = [...document.querySelectorAll('#sim-display .led')];
   const simPanel = document.querySelector('#sim-panel');
