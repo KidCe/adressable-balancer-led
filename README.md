@@ -33,8 +33,6 @@ The board drives 14 onboard WS2812-compatible LEDs as a mirrored 7+7 main light,
 
 See the live [interactive user guide](https://kidce.github.io/adressable-balancer-led/USER_GUIDE.html) for diagrams, detailed behavior, and the interactive simulator.
 
-## Hardware
-
 ## Hardware and connections
 
 - MCU: Puya PY32F002Bx5 (Cortex-M0+)
@@ -83,27 +81,55 @@ Build in µVision or run:
 .\build_release.ps1
 ```
 
-The release script performs a clean project build, checks the Keil log for errors, creates AXF/HEX/BIN artifacts, and writes SHA-256 checksums under `release/v1.0.0/`.
+The release script performs a clean project build, checks the Keil log for errors, creates AXF/HEX/BIN artifacts, and writes SHA-256 checksums under `release/v1.1.0/`.
+
+## Publishing the User Guide
+
+`USER_GUIDE.html` and `assets/logo.png` are the canonical User Guide inputs. Publish the User Guide in `docs/` with:
+
+```powershell
+.\publish_user_guide.ps1
+```
+
+Verify that the published User Guide is current without changing files:
+
+```powershell
+.\publish_user_guide.ps1 -Check
+```
+
+The release build runs this verification and stops if the published User Guide is stale.
 
 ## Flashing
 
 The current supported development method is SWD with J-Link through Keil µVision. Select the `PY32F002Bx5` target, build, flash, and verify.
+
+From VS Code:
+
+1. Press `Ctrl+Shift+B` to build the firmware.
+2. Open **Terminal → Run Task** and choose **Firmware: Build and Flash** to build and program the connected board.
+3. Use **Firmware: Flash** when the current build is already up to date.
+
+The VS Code tasks locate Keil automatically in its usual Windows install locations. If Keil is installed elsewhere, set the `KEIL_UV4` environment variable to the full path of `UV4.exe` before starting VS Code.
 
 Do not disconnect power during settings-sector erase/program operations or firmware flashing. SWD remains the recovery path if an experimental build becomes unresponsive.
 
 ## Repository files
 
 - `main.c` — release firmware
+- `led_output.c/.h` — WS2812/SPI output module
+- `lighting.c/.h` — pure color and frame-rendering module
+- `battery_monitor.c/.h` — ADC measurement and battery-protection state module
 - `USER_GUIDE.html` — end-user guide and simulator
 - `CHANGELOG.md` — public release history
 - `HISTORY.md` — detailed internal development notes
 - `RELEASE_CHECKLIST.md` — build, hardware-test, and publishing checks
 - `AdressableBalancerLEDPY32F002b.uvprojx` — Keil project
 - `build_release.ps1` — reproducible release packaging
+- `publish_user_guide.ps1` — User Guide publishing and drift verification
 
 ## Release status
 
-Version `1.0.0` is the first major software release. Hardware verification should be completed on the intended PCB revision before distributing binaries broadly.
+Version `1.1.0` is the current firmware release. Hardware verification should be completed on the intended PCB revision before distributing binaries broadly.
 
 ## Creator
 

@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "1.0.0"
+    [string]$Version = "1.1.0"
 )
 
 $ErrorActionPreference = "Stop"
@@ -12,6 +12,8 @@ $buildLog = Join-Path $objects "$baseName.build_log.htm"
 $uv4 = Join-Path $env:LOCALAPPDATA "Keil_v5\UV4\UV4.exe"
 $fromElf = Join-Path $env:LOCALAPPDATA "Keil_v5\ARM\ARMCLANG\Bin\FromElf.exe"
 $releaseDir = Join-Path $projectRoot "release\v$Version"
+
+& (Join-Path $projectRoot "publish_user_guide.ps1") -Check
 
 if (-not (Test-Path -LiteralPath $uv4)) {
     throw "Keil UV4 was not found at $uv4"

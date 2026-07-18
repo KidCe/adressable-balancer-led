@@ -5,7 +5,7 @@ Use this checklist before publishing firmware binaries or creating a GitHub rele
 ## Build
 
 - [ ] Set the intended version in `main.c`, `CHANGELOG.md`, and the release command.
-- [ ] Run `./build_release.ps1 -Version 1.0.0` in PowerShell.
+- [ ] Run `./build_release.ps1 -Version 1.1.0` in PowerShell.
 - [ ] Confirm the Keil build reports 0 errors and 0 warnings.
 - [ ] Confirm AXF, HEX, BIN, documentation, and `SHA256SUMS.txt` exist in the release folder.
 
@@ -25,8 +25,10 @@ Use this checklist before publishing firmware binaries or creating a GitHub rele
 
 ## Publish
 
+- [ ] Run `./publish_user_guide.ps1` after changing the User Guide or its logo.
+- [ ] Run `./publish_user_guide.ps1 -Check` and confirm the published User Guide in `docs/` is current.
 - [ ] Update the dated release section in `CHANGELOG.md`.
 - [ ] Review `README.md` and `USER_GUIDE.html` for behavior changes.
 - [ ] Choose and add a `LICENSE` before accepting outside contributions.
-- [ ] Create an annotated Git tag such as `v1.0.0`.
+- [ ] Create an annotated Git tag such as `v1.1.0`.
 - [ ] Upload the generated release files and publish concise release notes.

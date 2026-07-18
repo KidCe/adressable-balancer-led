@@ -10,6 +10,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - Hardware testing and feedback for the first public release.
 
+## [1.1.0] - 2026-07-18
+
+### Added
+
+- Dedicated LED-output module for SPI/WS2812 transmission and physical chain mapping.
+- Pure lighting module for frame operations, brightness scaling, and shared battery-bar rendering.
+- Battery-monitor module for ADC measurement, filtering, and voltage-protection state.
+- Smooth checker-entry and normal-color brightness transitions for less aggressive handling.
+
+### Changed
+
+- Limited normal battery-level and checker-entry bars to 25% output brightness.
+- Added a one-second ramp from 25% perceived brightness to the selected full-brightness color after startup and armed standby.
+- Required a button release before checker-mode hold-to-boost brightness becomes active.
+- Added filtered low-voltage qualification, recovery hysteresis, and emergency-voltage handling.
+- Adjusted full-voltage calibration by 30 mV to account for loaded battery recovery.
+
+### Fixed
+
+- Prevented the battery-not-full warning from flashing while a startup button is held for checker entry.
+- Kept the important battery-not-full red flashes at full brightness.
+
 ## [1.0.0] - 2026-07-12
 
 ### Added

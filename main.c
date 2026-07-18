@@ -1,29 +1,26 @@
 #include "py32f0xx.h"
-#include <string.h>
+#include "battery_monitor.h"
+#include "led_output.h"
+#include "lighting.h"
+#include "platform_irq.h"
 
 /* Firmware identity embedded in the release binary. */
 #define FW_VERSION_MAJOR 1
-#define FW_VERSION_MINOR 0
+#define FW_VERSION_MINOR 1
 #define FW_VERSION_PATCH 0
 
 /* Searchable ASCII identifier retained in release images and crash dumps. */
 __attribute__((used)) const char firmware_version[] =
-    "AddressableBalancerLED v1.0.0";
+    "AddressableBalancerLED v1.1.0";
 
 /* All delay calculations derive from this single clock definition. */
 #define SYSTEM_CLOCK_HZ            24000000UL
-#define SYSTICK_TICKS_PER_US        (SYSTEM_CLOCK_HZ / 1000000UL)
 #define SYSTICK_TICKS_PER_MS        (SYSTEM_CLOCK_HZ / 1000UL)
-#define PERIPHERAL_TIMEOUT_LOOPS    100000UL
 #define FLASH_TIMEOUT_LOOPS         1000000UL
 
 // =========================
 // Pin / LED config
 // =========================
-
-#define LED_COUNT   14
-#define LED_HALF    7
-#define LED_OUTPUT_COUNT 64
 
 #define BTN1_PIN    6   // PA6
 #define BTN2_PIN    5   // PA5
@@ -31,24 +28,15 @@ __attribute__((used)) const char firmware_version[] =
 #define IN_PA0_PIN  0
 #define IN_PB0_PIN  0
 
-#define ADC_PORT    GPIOB
-#define ADC_PIN     1
-
-// =========================
-// WS2812 SPI encoding
-// =========================
-
-#define WS_ZERO 0x8
-#define WS_ONE  0xC
-
-/* Temporarily disable WS2812 transmission for bisect testing. Set to 1 to enable. */
-#define WS_ENABLED 1
-
 // =========================
 // Brightness config
 // =========================
 
 #define NORMAL_BRIGHTNESS          255
+#define BATTERY_DISPLAY_BRIGHTNESS  64
+#define PROFILE_RAMP_START_PERCEIVED 64
+#define PROFILE_RAMP_MS            1000UL
+#define PROFILE_RAMP_FRAME_MS        20UL
 
 // =========================
 // Persistent saved profile storage
@@ -132,37 +120,13 @@ static uint8_t flash_wait_ready(void);
 static uint32_t *flash_storage_begin(void);
 static uint32_t *flash_storage_end(void);
 static void sleep_ms_wfi(uint32_t ms);
-static uint32_t irq_save_and_disable(void);
-static void irq_restore(uint32_t primask);
-
-// =========================
-// WS2812 SPI encoding helper
-// =========================
-
-static const uint8_t ws_encode2[4] = {
-    (WS_ZERO << 4) | WS_ZERO,
-    (WS_ZERO << 4) | WS_ONE,
-    (WS_ONE  << 4) | WS_ZERO,
-    (WS_ONE  << 4) | WS_ONE,
-};
+static void battery_bargraph_show(uint16_t mv);
+static void battery_low_power_mode(uint8_t *mode);
+static void battery_critical_sleep_mode(void);
 
 // =========================
 // Battery config
 // =========================
-
-#define VREFINT_MV                 1225UL
-
-#define ADC_AVERAGE_SAMPLES        12
-#define ADC_SAMPLE_DELAY_MS        2
-#define ADC_STARTUP_DELAY_US       20
-#define ADC_ENABLE_DELAY_US        10
-#define BATTERY_MONITOR_INTERVAL_MS 250
-
-#define BATTERY_LOW_MV             3450
-#define BATTERY_CRITICAL_MV        3350
-#define BATTERY_FULL_MV            4170
-#define BATTERY_FULL_MIN_MV        3500
-#define BATTERY_FULL_MAX_MV        5000
 
 #define BOOT_SWEEP_STEP_MS         50
 #define BOOT_SWEEP_WHITE_LEVEL     35
@@ -183,6 +147,8 @@ static const uint8_t ws_encode2[4] = {
 #define CRITICAL_SLEEP_MS          2000
 
 #define CHECKER_ENTRY_HOLD_MS      2000
+#define CHECKER_ENTRY_FRAME_MS       50
+#define CHECKER_ENTRY_BLINK_MS       80
 #define CHECKER_UPDATE_MS          250
 #define CHECKER_LOW_MV             3450
 #define CHECKER_WARNING_MV         3400
@@ -190,8 +156,9 @@ static const uint8_t ws_encode2[4] = {
 #define CHECKER_MIN_BRIGHTNESS     1
 #define CHECKER_HOLD_RAMP_MS       3000UL
 #define CHECKER_WARNING_RAMP_MS    120000UL
-#define CHECKER_BLINK_ON_MS        200
-#define CHECKER_BLINK_OFF_MS       800
+#define CHECKER_BLINK_ON_MS        100
+#define CHECKER_BLINK_GAP_MS       100
+#define CHECKER_BLINK_OFF_MS       1800
 
 // =========================
 // Button config
@@ -238,20 +205,10 @@ static const uint8_t ws_encode2[4] = {
 #define ARMED_READY_PERIOD_MS       500
 #define MODE_SAVE_DELAY_MS          1000
 
-// =========================
-// Types
-// =========================
-
-typedef struct {
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
-} Color;
-
-static Color leds[LED_COUNT];
+static LedFrame leds;
 
 static volatile uint32_t systick_sleep_ticks = 0;
-static uint16_t battery_full_mv = BATTERY_FULL_MV;
+static uint16_t battery_full_mv = BATTERY_DEFAULT_FULL_MV;
 static uint8_t mode_save_pending = 0;
 static uint8_t pending_mode = 0;
 static uint32_t pending_mode_ms = 0;
@@ -278,29 +235,6 @@ void SysTick_Handler(void)
     systick_sleep_ticks++;
 }
 
-static void delay_us(uint32_t us)
-{
-    if (us == 0)
-        return;
-
-    while (us > 0) {
-        uint32_t chunk = us;
-
-        if (chunk > 1000)
-            chunk = 1000;
-
-        SysTick->LOAD = (SYSTICK_TICKS_PER_US * chunk) - 1U;
-        SysTick->VAL = 0;
-        SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_ENABLE_Msk;
-
-        while ((SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk) == 0) {
-        }
-
-        SysTick->CTRL = 0;
-        us -= chunk;
-    }
-}
-
 static void delay_ms(uint32_t ms)
 {
     sleep_ms_wfi(ms);
@@ -318,6 +252,8 @@ static void sleep_ms_wfi(uint32_t ms)
 
     while (systick_sleep_ticks < ms) {
         __WFI();
+
+        battery_monitor_tick(1U);
     }
 
     SysTick->CTRL = 0;
@@ -327,39 +263,27 @@ static void sleep_ms_wfi(uint32_t ms)
 // Helpers
 // =========================
 
-static uint8_t scale8(uint8_t value, uint8_t brightness)
+/* Frame helpers keep animation code focused on intent while the lighting
+ * module owns frame mutation details. */
+static Color color_scaled(Color color, uint8_t brightness)
 {
-    return (uint8_t)(((uint16_t)value * brightness) / 255);
-}
-
-static Color color_scaled(Color c, uint8_t brightness)
-{
-    c.r = scale8(c.r, brightness);
-    c.g = scale8(c.g, brightness);
-    c.b = scale8(c.b, brightness);
-    return c;
+    return lighting_scale_color(color, brightness);
 }
 
 static void leds_clear(void)
 {
-    memset(leds, 0, sizeof(leds));
+    lighting_clear(leds);
 }
 
 static void leds_set_all(uint8_t r, uint8_t g, uint8_t b)
 {
-    Color c = {r, g, b};
-    for (uint8_t i = 0; i < LED_COUNT; i++) {
-        leds[i] = c;
-    }
+    Color color = {r, g, b};
+    lighting_fill(leds, color);
 }
 
-static void leds_set_mirrored(uint8_t index, Color c)
+static void leds_set_mirrored(uint8_t index, Color color)
 {
-    if (index >= LED_HALF)
-        return;
-
-    leds[index] = c;
-    leds[LED_COUNT - 1 - index] = c;
+    lighting_set_mirrored(leds, index, color);
 }
 
 // =========================
@@ -370,15 +294,6 @@ static void gpio_init(void)
 {
     RCC->IOPENR |= RCC_IOPENR_GPIOAEN;
     RCC->IOPENR |= RCC_IOPENR_GPIOBEN;
-
-    GPIOA->MODER &= ~(3U << (7 * 2));
-    GPIOA->MODER |=  (2U << (7 * 2));
-    GPIOA->OTYPER &= ~(1U << 7);
-    GPIOA->OSPEEDR &= ~(3U << (7 * 2));
-    GPIOA->OSPEEDR |=  (3U << (7 * 2));
-    GPIOA->PUPDR &= ~(3U << (7 * 2));
-    GPIOA->AFR[0] &= ~(0xFU << (7 * 4));
-    GPIOA->AFR[0] |=  (0U << (7 * 4));
 
     GPIOA->MODER &= ~(3U << (BTN1_PIN * 2));
     GPIOA->PUPDR &= ~(3U << (BTN1_PIN * 2));
@@ -396,210 +311,42 @@ static void gpio_init(void)
     GPIOB->PUPDR &= ~(3U << (IN_PB0_PIN * 2));
     GPIOB->PUPDR |=  (1U << (IN_PB0_PIN * 2));
 
-    ADC_PORT->MODER &= ~(3U << (ADC_PIN * 2));
-    ADC_PORT->MODER |=  (3U << (ADC_PIN * 2));
-    ADC_PORT->PUPDR &= ~(3U << (ADC_PIN * 2));
 }
 
-// =========================
-// SPI
-// =========================
-
-static void spi1_init(void)
-{
-    RCC->APBENR2 |= RCC_APBENR2_SPI1EN;
-
-    SPI1->CR1 &= ~SPI_CR1_SPE;
-
-    SPI1->CR1 =
-        SPI_CR1_MSTR |
-        SPI_CR1_SSM  |
-        SPI_CR1_SSI  |
-        SPI_CR1_BR_1;
-
-    SPI1->CR2 = 0;
-
-#ifdef SPI_CR2_DS
-    SPI1->CR2 |= (7U << SPI_CR2_DS_Pos);
-#endif
-
-#ifdef SPI_CR2_FRXTH
-    SPI1->CR2 |= SPI_CR2_FRXTH;
-#endif
-
-    SPI1->CR1 |= SPI_CR1_SPE;
-}
-
-static uint8_t spi1_send_byte(uint8_t data)
-{
-    uint32_t timeout = PERIPHERAL_TIMEOUT_LOOPS;
-    while ((SPI1->SR & SPI_SR_TXE) == 0) {
-        if (--timeout == 0)
-            return 0;
-    }
-
-    *((volatile uint8_t *)&SPI1->DR) = data;
-
-    timeout = PERIPHERAL_TIMEOUT_LOOPS;
-    while ((SPI1->SR & SPI_SR_BSY) != 0) {
-        if (--timeout == 0)
-            return 0;
-    }
-    return 1;
-}
-
-// =========================
-// WS2812 over SPI
-// =========================
-
-static uint8_t ws_send_byte(uint8_t data)
-{
-    return spi1_send_byte(ws_encode2[(data >> 6) & 0x03]) &&
-           spi1_send_byte(ws_encode2[(data >> 4) & 0x03]) &&
-           spi1_send_byte(ws_encode2[(data >> 2) & 0x03]) &&
-           spi1_send_byte(ws_encode2[data & 0x03]);
-}
-
-static uint8_t ws_send_color(uint8_t r, uint8_t g, uint8_t b)
-{
-    return ws_send_byte(g) && ws_send_byte(r) && ws_send_byte(b);
-}
-
-/* ws_show(): send LED data over SPI. Can be compiled out by setting
- * WS_ENABLED to 0 to help isolate reboot causes during button press.
- */
-#if WS_ENABLED
 static void ws_show(void)
 {
-    uint32_t primask = irq_save_and_disable();
-
-    /* The physical PCB uses the first 14 values. Extra LEDs receive repeated
-     * copies of that mirrored pattern, allowing an external chain without
-     * increasing the animation buffers or RAM usage. */
-    uint8_t pattern_index = 0;
-    for (uint8_t i = 0; i < LED_OUTPUT_COUNT; i++) {
-        Color c = leds[pattern_index];
-        if (!ws_send_color(c.r, c.g, c.b))
-            break;
-
-        pattern_index++;
-        if (pattern_index >= LED_COUNT)
-            pattern_index = 0;
-    }
-
-    irq_restore(primask);
-
-    delay_us(100);
+    led_output_show(leds, LED_OUTPUT_REPEAT_FRAME);
 }
 
 static void ws_show_armed_frame(void)
 {
-    uint32_t primask = irq_save_and_disable();
+    led_output_show(leds, LED_OUTPUT_FRAME_THEN_OFF);
+}
 
-    for (uint8_t i = 0; i < LED_OUTPUT_COUNT; i++) {
-        uint8_t ok = (i < LED_COUNT) ?
-            ws_send_color(leds[i].r, leds[i].g, leds[i].b) :
-            ws_send_color(0, 0, 0);
-        if (!ok)
-            break;
+/* Wait in sampling-sized chunks so long LED pauses cannot hide an emergency
+ * or delay a confirmed recovery by hundreds of milliseconds. */
+static uint8_t battery_protection_wait(uint32_t ms, uint8_t check_emergency,
+                                       uint8_t check_recovery)
+{
+    while (ms > 0) {
+        uint32_t chunk = (ms > BATTERY_SAMPLE_INTERVAL_MS) ?
+                         BATTERY_SAMPLE_INTERVAL_MS : ms;
+        delay_ms(chunk);
+        ms -= chunk;
+
+        BatteryStatus status = battery_monitor_status();
+        if (check_emergency && status.emergency)
+            return 1;
+        if (check_recovery && status.recovered)
+            return 2;
     }
 
-    irq_restore(primask);
-    delay_us(100);
-}
-#else
-static void ws_show(void)
-{
-    (void)leds;
-    /* No-op when WS is disabled. */
-}
-
-
-static void ws_show_armed_frame(void)
-{
-    (void)leds;
-}
-#endif
-
-// =========================
-// ADC / Battery via VREFINT
-// =========================
-
-static void adc_init_vrefint(void)
-{
-    RCC->APBENR2 |= (1U << 20);
-
-    ADC->CCR |= (1U << 22);
-
-    delay_us(ADC_STARTUP_DELAY_US);
-
-    ADC1->CHSELR = (1U << 9);
-    ADC1->SMPR = 0x7;
-    ADC1->CR |= ADC_CR_ADEN;
-
-    delay_us(ADC_ENABLE_DELAY_US);
-}
-
-static uint16_t adc_read_vrefint_raw(void)
-{
-    uint32_t timeout = PERIPHERAL_TIMEOUT_LOOPS;
-
-    ADC1->CHSELR = (1U << 9);
-
-    ADC1->ISR = 0xFFFFFFFF;
-    ADC1->CR |= ADC_CR_ADSTART;
-
-    while ((ADC1->ISR & ADC_ISR_EOC) == 0) {
-        if (--timeout == 0)
-            return 0;
-    }
-
-    return (uint16_t)(ADC1->DR & 0x0FFF);
-}
-
-static uint16_t battery_mv_read(void)
-{
-    uint32_t sum = 0;
-    uint8_t valid_samples = 0;
-    static uint16_t last_valid_mv = BATTERY_FULL_MV;
-
-    for (uint8_t i = 0; i < ADC_AVERAGE_SAMPLES; i++) {
-        uint16_t sample = adc_read_vrefint_raw();
-        if (sample != 0) {
-            sum += sample;
-            valid_samples++;
-        }
-    }
-
-    if (valid_samples == 0)
-        return last_valid_mv;
-
-    uint32_t raw = sum / valid_samples;
-
-    if (raw == 0)
-        return last_valid_mv;
-
-    last_valid_mv = (uint16_t)((VREFINT_MV * 4095UL) / raw);
-    return last_valid_mv;
+    return 0;
 }
 
 // =========================
 // Boot animation / battery display
 // =========================
-
-static uint8_t battery_mv_to_bar_count(uint16_t mv)
-{
-    if (mv <= BATTERY_LOW_MV)
-        return 0;
-
-    if (mv >= battery_full_mv)
-        return LED_HALF;
-
-    uint32_t range = battery_full_mv - BATTERY_LOW_MV;
-    uint32_t above_low = mv - BATTERY_LOW_MV;
-    uint32_t count = (above_low * LED_HALF + range - 1U) / range;
-    return (count > LED_HALF) ? LED_HALF : (uint8_t)count;
-}
 
 static void boot_sweep_white(void)
 {
@@ -617,10 +364,10 @@ static void boot_sweep_white(void)
     }
 }
 
-static void battery_full_blink(void)
+static void battery_not_ready_blink(void)
 {
     for (uint8_t i = 0; i < FULL_BLINK_COUNT; i++) {
-        leds_set_all(0, 255, 0);
+        leds_set_all(255, 0, 0);
         ws_show();
         delay_ms(FULL_BLINK_ON_MS);
 
@@ -630,28 +377,19 @@ static void battery_full_blink(void)
     }
 }
 
+static void battery_race_ready_show(void)
+{
+    uint16_t mv = battery_monitor_status().millivolts;
+    battery_bargraph_show(mv);
+    if (mv < battery_full_mv)
+        battery_not_ready_blink();
+}
+
 static void battery_bargraph_render(uint16_t mv)
 {
-    uint8_t count = battery_mv_to_bar_count(mv);
-
-    leds_clear();
-
-    for (uint8_t i = 0; i < LED_HALF; i++) {
-        Color c;
-
-        if (i < count) {
-            if (i < 2) {
-                c.r = 255; c.g = 0;   c.b = 0;
-            } else if (i < 5) {
-                c.r = 255; c.g = 160; c.b = 0;
-            } else {
-                c.r = 0;   c.g = 255; c.b = 0;
-            }
-
-            leds_set_mirrored(i, c);
-        }
-    }
-
+    lighting_render_battery_bar(leds, mv, BATTERY_LOW_MV,
+                                battery_full_mv,
+                                BATTERY_DISPLAY_BRIGHTNESS);
     ws_show();
 }
 
@@ -659,19 +397,6 @@ static void battery_bargraph_show(uint16_t mv)
 {
     battery_bargraph_render(mv);
     delay_ms(BATTERY_DISPLAY_MS);
-}
-
-static uint8_t checker_bar_count(uint16_t mv)
-{
-    if (mv <= CHECKER_WARNING_MV)
-        return 0;
-    if (mv >= battery_full_mv)
-        return LED_HALF;
-
-    uint32_t range = battery_full_mv - CHECKER_WARNING_MV;
-    uint32_t above_warning = mv - CHECKER_WARNING_MV;
-    uint32_t count = (above_warning * LED_HALF + range - 1U) / range;
-    return (count > LED_HALF) ? LED_HALF : (uint8_t)count;
 }
 
 static uint8_t checker_bar_brightness(uint16_t mv)
@@ -689,20 +414,8 @@ static uint8_t checker_bar_brightness(uint16_t mv)
 
 static void checker_bargraph_show(uint16_t mv, uint8_t brightness)
 {
-    uint8_t count = checker_bar_count(mv);
-
-    leds_clear();
-    for (uint8_t i = 0; i < count; i++) {
-        Color c;
-        if (i < 2) {
-            c.r = 255; c.g = 0; c.b = 0;
-        } else if (i < 5) {
-            c.r = 255; c.g = 160; c.b = 0;
-        } else {
-            c.r = 0; c.g = 255; c.b = 0;
-        }
-        leds_set_mirrored(i, color_scaled(c, brightness));
-    }
+    lighting_render_battery_bar(leds, mv, CHECKER_WARNING_MV,
+                                battery_full_mv, brightness);
     ws_show();
 }
 
@@ -721,7 +434,7 @@ static uint8_t load_saved_settings(uint16_t *full_mv)
     uint32_t *page = flash_storage_begin();
     uint32_t *end = flash_storage_end();
     uint8_t last_mode = 0;
-    uint16_t last_full_mv = BATTERY_FULL_MV;
+    uint16_t last_full_mv = BATTERY_DEFAULT_FULL_MV;
     uint8_t found = 0;
 
     /* Entries are append-only. Scanning until the first erased page finds the
@@ -814,19 +527,6 @@ static void service_mode_save(uint32_t elapsed_ms)
     }
 }
 
-static uint32_t irq_save_and_disable(void)
-{
-    uint32_t primask = __get_PRIMASK();
-    __disable_irq();
-    return primask;
-}
-
-static void irq_restore(uint32_t primask)
-{
-    if ((primask & 1U) == 0U)
-        __enable_irq();
-}
-
 static uint8_t flash_wait_ready(void)
 {
     uint32_t timeout = FLASH_TIMEOUT_LOOPS;
@@ -859,7 +559,7 @@ static void flash_lock(void)
 
 static uint8_t flash_erase_storage_sector(void)
 {
-    uint32_t primask = irq_save_and_disable();
+    uint32_t primask = platform_irq_save_and_disable();
     uint8_t ok;
 
     flash_unlock();
@@ -870,7 +570,7 @@ static uint8_t flash_erase_storage_sector(void)
     ok = flash_wait_ready();
     FLASH->CR &= ~FLASH_CR_SER;
     flash_lock();
-    irq_restore(primask);
+    platform_irq_restore(primask);
     if (ok) {
         volatile uint32_t *sector =
             (volatile uint32_t *)FLASH_STORAGE_SECTOR_START;
@@ -886,7 +586,7 @@ static uint8_t flash_program_page(volatile uint32_t *address, uint8_t mode,
 {
     uint32_t data[FLASH_PROGRAM_PAGE_SIZE / sizeof(uint32_t)];
     const uint32_t word_count = FLASH_PROGRAM_PAGE_SIZE / sizeof(uint32_t);
-    uint32_t primask = irq_save_and_disable();
+    uint32_t primask = platform_irq_save_and_disable();
     uint8_t ok;
 
     for (uint32_t i = 0; i < word_count; i++)
@@ -909,7 +609,7 @@ static uint8_t flash_program_page(volatile uint32_t *address, uint8_t mode,
     ok = flash_wait_ready();
     FLASH->CR &= ~FLASH_CR_PG;
     flash_lock();
-    irq_restore(primask);
+    platform_irq_restore(primask);
     if (ok) {
         ok = (address[0] == FLASH_STORAGE_SIGNATURE) &&
              (address[1] == FLASH_STORAGE_ENTRY_VALUE(mode)) &&
@@ -976,6 +676,28 @@ static void show_color_profile(uint8_t mode)
     ws_show();
 }
 
+static void show_color_profile_ramp(uint8_t mode)
+{
+    for (uint32_t elapsed_ms = 0; elapsed_ms < PROFILE_RAMP_MS;
+         elapsed_ms += PROFILE_RAMP_FRAME_MS) {
+        uint8_t perceived_brightness = (uint8_t)(
+            PROFILE_RAMP_START_PERCEIVED +
+            ((255UL - PROFILE_RAMP_START_PERCEIVED) * elapsed_ms) /
+            PROFILE_RAMP_MS);
+        Color color = lighting_scale_perceived(color_profiles[mode],
+                                               perceived_brightness);
+
+        leds_set_all(color.r, color.g, color.b);
+        ws_show();
+        delay_ms(PROFILE_RAMP_FRAME_MS);
+
+        if (battery_monitor_status().emergency)
+            return;
+    }
+
+    show_color_profile(mode);
+}
+
 static void show_low_power_profile(uint8_t mode, uint8_t warning_on)
 {
     Color c = color_scaled(color_profiles[mode], LOW_POWER_DIM_LEVEL);
@@ -1020,12 +742,16 @@ static void armed_low_power_mode(uint8_t mode)
     ws_show_armed_frame();
 
     while (1) {
+        if (battery_monitor_status().emergency)
+            battery_critical_sleep_mode();
+
         if (btn1_pressed_raw() || btn2_pressed_raw()) {
             delay_ms(DEBOUNCE_MS);
             if (btn1_pressed_raw() || btn2_pressed_raw()) {
                 while (btn1_pressed_raw() || btn2_pressed_raw())
                     delay_ms(ARMED_POLL_MS);
-                show_color_profile(mode);
+                battery_race_ready_show();
+                show_color_profile_ramp(mode);
                 return;
             }
         }
@@ -1137,7 +863,7 @@ static uint8_t process_button(uint8_t button, uint8_t *mode, uint8_t low_power)
         }
 
         if (held_ms >= CALIBRATION_RESET_HOLD_MS) {
-            battery_full_mv = BATTERY_FULL_MV;
+            battery_full_mv = BATTERY_DEFAULT_FULL_MV;
 #if RUNTIME_SAVE_ENABLED
             save_settings(*mode, battery_full_mv);
 #endif
@@ -1151,10 +877,12 @@ static uint8_t process_button(uint8_t button, uint8_t *mode, uint8_t low_power)
         }
 
         if (!calibration_done && held_ms >= CALIBRATION_HOLD_MS) {
-            uint16_t measured_mv = battery_mv_read();
-            if (measured_mv >= BATTERY_FULL_MIN_MV &&
+            uint16_t measured_mv = battery_monitor_status().millivolts;
+            if (measured_mv >= BATTERY_FULL_MIN_MV +
+                               BATTERY_CALIBRATION_OFFSET_MV &&
                 measured_mv <= BATTERY_FULL_MAX_MV) {
-                battery_full_mv = measured_mv;
+                battery_full_mv = measured_mv -
+                                  BATTERY_CALIBRATION_OFFSET_MV;
 #if RUNTIME_SAVE_ENABLED
                 save_settings(*mode, battery_full_mv);
 #endif
@@ -1174,7 +902,9 @@ static uint8_t process_button(uint8_t button, uint8_t *mode, uint8_t low_power)
     if (!low_power && !calibration_done && held_ms >= ARMED_FADE_MS) {
         service_mode_save(MODE_SAVE_DELAY_MS);
         armed_entry_animation(*mode);
+        battery_monitor_set_low_tracking(0);
         armed_low_power_mode(*mode);
+        battery_monitor_set_low_tracking(1);
         return 2;
     }
 
@@ -1311,7 +1041,7 @@ static void disco_set_sides(uint8_t hue)
         leds[i] = side_b;
 }
 
-static void disco_rainbow_mode(void)
+static void disco_rainbow_mode(uint8_t *mode)
 {
     enum {
         DISCO_MODE_RAINBOW = 0,
@@ -1322,7 +1052,8 @@ static void disco_rainbow_mode(void)
 
     uint8_t disco_mode = DISCO_MODE_RAINBOW;
     uint32_t phase_accumulator = 0;
-    uint32_t random_state = 0x6D2B79F5UL ^ battery_mv_read();
+    uint32_t random_state = 0x6D2B79F5UL ^
+                            battery_monitor_status().millivolts;
     uint32_t effect_elapsed_ms = 0;
     uint8_t effect_on = 1;
     uint8_t second_mode_clicks = 0;
@@ -1331,6 +1062,15 @@ static void disco_rainbow_mode(void)
     uint8_t second_mode_armed = 0;
 
     while (1) {
+        if (battery_monitor_status().emergency) {
+            battery_critical_sleep_mode();
+            return;
+        }
+        if (battery_monitor_status().low_due) {
+            battery_low_power_mode(mode);
+            return;
+        }
+
         if (disco_mode == DISCO_MODE_RAINBOW) {
             uint8_t phase = (uint8_t)(phase_accumulator /
                                       DISCO_RAINBOW_CYCLE_MS);
@@ -1437,10 +1177,33 @@ static uint8_t battery_checker_requested(uint8_t held_buttons)
         if (held_buttons == 0)
             return 0;
 
-        battery_bargraph_render(battery_mv_read());
-        delay_ms(CHECKER_UPDATE_MS);
-        held_ms += CHECKER_UPDATE_MS;
+        uint16_t mv = battery_monitor_status().millivolts;
+        uint8_t target_brightness = checker_bar_brightness(mv);
+        uint32_t remaining_ms = CHECKER_ENTRY_HOLD_MS - held_ms;
+        uint8_t brightness = (uint8_t)(target_brightness +
+            ((uint32_t)(BATTERY_DISPLAY_BRIGHTNESS - target_brightness) *
+             remaining_ms) /
+            CHECKER_ENTRY_HOLD_MS);
+
+        checker_bargraph_show(mv, brightness);
+        if (battery_protection_wait(CHECKER_ENTRY_FRAME_MS, 1, 0) == 1)
+            battery_critical_sleep_mode();
+        held_ms += CHECKER_ENTRY_FRAME_MS;
     }
+
+    /* Do not enter if the button was released during the final fade frame. */
+    if ((!btn1_pressed_raw() && (held_buttons & 1U)) ||
+        (!btn2_pressed_raw() && (held_buttons & 2U)))
+        return 0;
+
+    /* A short off/on blink separates the entry fade from persistent mode. */
+    leds_clear();
+    ws_show();
+    battery_protection_wait(CHECKER_ENTRY_BLINK_MS, 1, 0);
+
+    uint16_t mv = battery_monitor_status().millivolts;
+    checker_bargraph_show(mv, checker_bar_brightness(mv));
+    battery_protection_wait(CHECKER_ENTRY_BLINK_MS, 1, 0);
 
     return 1;
 }
@@ -1449,15 +1212,23 @@ static void battery_checker_mode(void)
 {
     uint32_t warning_elapsed_ms = 0;
     uint32_t button_hold_ms = 0;
+    uint8_t brightness_control_armed = 0;
 
     while (1) {
-        uint16_t mv = battery_mv_read();
+        if (battery_monitor_status().emergency)
+            battery_critical_sleep_mode();
+
+        uint8_t button_pressed = any_button_pressed_raw();
+        if (!brightness_control_armed && !button_pressed)
+            brightness_control_armed = 1;
+
+        uint16_t mv = battery_monitor_status().millivolts;
 
         if (mv > CHECKER_WARNING_MV) {
             warning_elapsed_ms = 0;
 
             uint8_t brightness = checker_bar_brightness(mv);
-            if (any_button_pressed_raw()) {
+            if (brightness_control_armed && button_pressed) {
                 if (button_hold_ms < CHECKER_HOLD_RAMP_MS) {
                     button_hold_ms += CHECKER_UPDATE_MS;
                     if (button_hold_ms > CHECKER_HOLD_RAMP_MS)
@@ -1472,7 +1243,7 @@ static void battery_checker_mode(void)
             }
 
             checker_bargraph_show(mv, brightness);
-            delay_ms(CHECKER_UPDATE_MS);
+            battery_protection_wait(CHECKER_UPDATE_MS, 1, 0);
             continue;
         }
 
@@ -1484,16 +1255,22 @@ static void battery_checker_mode(void)
         if (brightness > 255U)
             brightness = 255U;
 
-        leds_set_all((uint8_t)brightness, 0, 0);
-        ws_show();
-        delay_ms(CHECKER_BLINK_ON_MS);
+        for (uint8_t blink = 0; blink < 2; blink++) {
+            leds_set_all((uint8_t)brightness, 0, 0);
+            ws_show();
+            battery_protection_wait(CHECKER_BLINK_ON_MS, 1, 0);
 
-        leds_clear();
-        ws_show();
-        delay_ms(CHECKER_BLINK_OFF_MS);
+            leds_clear();
+            ws_show();
+            if (blink == 0)
+                battery_protection_wait(CHECKER_BLINK_GAP_MS, 1, 0);
+        }
+
+        battery_protection_wait(CHECKER_BLINK_OFF_MS, 1, 0);
 
         if (warning_elapsed_ms < CHECKER_WARNING_RAMP_MS) {
-            warning_elapsed_ms += CHECKER_BLINK_ON_MS +
+            warning_elapsed_ms += CHECKER_BLINK_ON_MS * 2U +
+                                  CHECKER_BLINK_GAP_MS +
                                   CHECKER_BLINK_OFF_MS;
             if (warning_elapsed_ms > CHECKER_WARNING_RAMP_MS)
                 warning_elapsed_ms = CHECKER_WARNING_RAMP_MS;
@@ -1507,39 +1284,46 @@ static void battery_checker_mode(void)
 
 static void battery_low_power_mode(uint8_t *mode)
 {
+    battery_monitor_set_low_tracking(0);
+
     while (1) {
-        uint16_t mv = battery_mv_read();
-
-        if (mv < BATTERY_CRITICAL_MV)
+        if (battery_monitor_status().emergency) {
+            battery_critical_sleep_mode();
             return;
+        }
 
-        if (mv >= BATTERY_LOW_MV)
+        if (battery_monitor_status().recovered)
             return;
 
         process_button(1, mode, 1);
         process_button(2, mode, 1);
 
         show_low_power_profile(*mode, 1);
-        sleep_ms_wfi(LOW_POWER_BLINK_ON_MS);
+        if (battery_protection_wait(LOW_POWER_BLINK_ON_MS, 1, 1) != 0)
+            continue;
 
         show_low_power_profile(*mode, 0);
-        sleep_ms_wfi(LOW_POWER_BLINK_OFF_MS);
+        if (battery_protection_wait(LOW_POWER_BLINK_OFF_MS, 1, 1) != 0)
+            continue;
         service_mode_save(LOW_POWER_BLINK_ON_MS + LOW_POWER_BLINK_OFF_MS);
     }
 }
 
 static void battery_critical_sleep_mode(void)
 {
-    while (1) {
-        uint16_t mv = battery_mv_read();
+    battery_monitor_set_low_tracking(0);
 
-        if (mv >= BATTERY_LOW_MV)
+    while (1) {
+        if (battery_monitor_status().recovered) {
+            battery_monitor_resume_after_recovery();
             return;
+        }
 
         leds_clear();
         ws_show();
 
-        sleep_ms_wfi(CRITICAL_SLEEP_MS);
+        if (battery_protection_wait(CRITICAL_SLEEP_MS, 0, 1) == 2)
+            continue;
 
         leds_clear();
 
@@ -1547,7 +1331,7 @@ static void battery_critical_sleep_mode(void)
         leds_set_mirrored(0, red);
         ws_show();
 
-        delay_ms(CRITICAL_BLINK_ON_MS);
+        battery_protection_wait(CRITICAL_BLINK_ON_MS, 0, 1);
 
         leds_clear();
         ws_show();
@@ -1561,10 +1345,8 @@ static void battery_critical_sleep_mode(void)
 int main(void)
 {
     gpio_init();
-    spi1_init();
-    adc_init_vrefint();
-
-    delay_ms(20);
+    led_output_init();
+    battery_monitor_init();
 
     uint8_t mode = load_saved_settings(&battery_full_mv);
     uint8_t startup_buttons = 0;
@@ -1575,48 +1357,37 @@ int main(void)
 
     boot_sweep_white();
 
-    uint16_t battery_mv = battery_mv_read();
-
-    if (battery_mv >= battery_full_mv) {
-        battery_full_blink();
-    } else {
-        battery_bargraph_show(battery_mv);
+    if (battery_checker_requested(startup_buttons)) {
+        battery_monitor_set_low_tracking(0);
+        battery_checker_mode();
     }
 
-    if (battery_checker_requested(startup_buttons))
-        battery_checker_mode();
+    /* A held startup button owns the battery-bar presentation while checker
+     * entry is being decided. Only run the normal ready indication after the
+     * button is released before the checker hold threshold. */
+    battery_race_ready_show();
 
-    battery_mv = battery_mv_read();
-    if (battery_mv < BATTERY_CRITICAL_MV)
+    if (battery_monitor_status().emergency)
         battery_critical_sleep_mode();
 
-    battery_mv = battery_mv_read();
-    if (battery_mv < BATTERY_LOW_MV)
-        battery_low_power_mode(&mode);
-
-    show_color_profile(mode);
+    battery_monitor_set_low_tracking(1);
+    show_color_profile_ramp(mode);
 
     uint8_t rapid_clicks = 0;
     uint32_t rapid_click_gap_ms = 0;
     uint32_t idle_ms = 0;
-    /* Voltage changes slowly in normal use, so ADC sampling does not need to
-     * run on every 5 ms UI pass. The immediate first check is intentional. */
-    uint32_t battery_monitor_ms = BATTERY_MONITOR_INTERVAL_MS;
     uint8_t input_locked = 0;
 
     while (1)
     {
-        if (battery_monitor_ms >= BATTERY_MONITOR_INTERVAL_MS) {
-            battery_monitor_ms = 0;
-            battery_mv = battery_mv_read();
-
-            if (battery_mv < BATTERY_CRITICAL_MV) {
-                battery_critical_sleep_mode();
-                show_color_profile(mode);
-            } else if (battery_mv < BATTERY_LOW_MV) {
-                battery_low_power_mode(&mode);
-                show_color_profile(mode);
-            }
+        if (battery_monitor_status().emergency) {
+            battery_critical_sleep_mode();
+            battery_monitor_set_low_tracking(1);
+            show_color_profile(mode);
+        } else if (battery_monitor_status().low_due) {
+            battery_low_power_mode(&mode);
+            battery_monitor_set_low_tracking(1);
+            show_color_profile(mode);
         }
 
         if (input_locked) {
@@ -1635,7 +1406,6 @@ int main(void)
             }
 
             delay_ms(MAIN_LOOP_DELAY_MS);
-            battery_monitor_ms += MAIN_LOOP_DELAY_MS;
             service_mode_save(MAIN_LOOP_DELAY_MS);
             continue;
         }
@@ -1664,7 +1434,9 @@ int main(void)
 
             if (rapid_clicks >= DISCO_TRIGGER_CLICKS) {
                 cancel_mode_save();
-                disco_rainbow_mode();
+                disco_rainbow_mode(&mode);
+                battery_monitor_set_low_tracking(1);
+                show_color_profile(mode);
             }
         } else if (rapid_click_gap_ms > MAIN_LOOP_DELAY_MS) {
             rapid_click_gap_ms -= MAIN_LOOP_DELAY_MS;
@@ -1673,7 +1445,6 @@ int main(void)
         }
 
         delay_ms(MAIN_LOOP_DELAY_MS);
-        battery_monitor_ms += MAIN_LOOP_DELAY_MS;
         service_mode_save(MAIN_LOOP_DELAY_MS);
     }
 }
