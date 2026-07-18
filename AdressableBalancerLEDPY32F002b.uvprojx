@@ -389,6 +389,21 @@
               <FileType>1</FileType>
               <FilePath>.\main.c</FilePath>
             </File>
+            <File>
+              <FileName>led_output.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\led_output.c</FilePath>
+            </File>
+            <File>
+              <FileName>lighting.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\lighting.c</FilePath>
+            </File>
+            <File>
+              <FileName>battery_monitor.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\battery_monitor.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

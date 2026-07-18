@@ -112,14 +112,14 @@
         <p class="muted" style="text-align:center">The seven blocks above represent mirrored LED pairs. Press and hold the buttons at the top just like the physical product.</p>
       </div>
       <p>Seven dual-sided positions fill from red through amber to green. The upper end uses your calibrated full voltage.</p>
-      <p class="muted">At a full reading, the LEDs blink green three times instead of holding the bar.</p>
+      <p class="muted">The bar is intentionally subdued for handling. A reading below the calibrated full level is followed by three bright red attention flashes.</p>
     </article>
     <article class="card">
       <h2>Automatic protection</h2>
       <table>
         <tr><th>Voltage</th><th>Behavior</th></tr>
-        <tr><td>Below 3.45 V</td><td>Normal lighting dims and shows a low-battery warning.</td></tr>
-        <tr><td>Below 3.35 V</td><td>The LEDs spend most of their time off and briefly warn in red.</td></tr>
+        <tr><td>Below 3.40 V for 10 s</td><td>Normal lighting dims and shows a low-battery warning.</td></tr>
+        <tr><td>Below 2.80 V briefly</td><td>The LEDs spend most of their time off and briefly warn in red.</td></tr>
       </table>
     </article>
   </section>
@@ -137,12 +137,12 @@
 
   <section class="card">
     <h2>Armed low-power standby</h2>
-    <p>Connect the battery ahead of time without leaving the main LEDs running. Armed standby remembers your color and brings it back at full brightness with one press.</p>
+    <p>Connect the battery ahead of time without leaving the main LEDs running. Armed standby remembers your color; waking shows the battery level, then gently restores the color over one second.</p>
     <div class="flow">
       <div class="node"><strong>Hold either button</strong><br><span class="muted">selected color fades for 2 s</span></div><div class="arrow">→</div>
       <div class="node"><strong>Release-ready blink</strong><br><span class="muted">two dim LEDs per side</span></div><div class="arrow">→</div>
       <div class="node"><strong>Release before 5 s</strong><br><span class="muted">armed standby starts</span></div><div class="arrow">→</div>
-      <div class="node"><strong>Press once</strong><br><span class="muted">full brightness returns</span></div>
+      <div class="node"><strong>Press once</strong><br><span class="muted">battery check + gentle ramp</span></div>
     </div>
     <p>In standby, external LEDs stay off and one mirrored LED pair gives a very dim, slow heartbeat. This keeps the chosen color identifiable while greatly reducing LED power.</p>
     <p class="muted">Keep holding instead of releasing to use the normal 5-second calibration or 10-second reset.</p>
@@ -174,11 +174,11 @@
     <div class="flow">
       <div class="node"><strong>Hold a button</strong><br><span class="muted">while connecting power</span></div><div class="arrow">→</div>
       <div class="node"><strong>Normal startup</strong><br><span class="muted">white sweep + battery bar</span></div><div class="arrow">→</div>
-      <div class="node"><strong>Keep holding 2 s</strong><br><span class="muted">release to cancel</span></div><div class="arrow">→</div>
+      <div class="node"><strong>Keep holding 2 s</strong><br><span class="muted">bar fades + entry blink</span></div><div class="arrow">→</div>
       <div class="node"><strong>Checker active</strong><br><span class="muted">until power-off</span></div>
     </div>
     <div class="grid" style="margin-top:16px">
-      <div><h3>Normal checker display</h3><p>The live battery bar stays very dim to save power. Hold either button to make it gradually brighter for viewing in sunlight; release to return immediately to the power-saving level.</p></div>
+      <div><h3>Normal checker display</h3><p>The live battery bar stays very dim to save power. Release the entry button first; a new hold then makes the bar gradually brighter for viewing in sunlight. Release to return immediately to the power-saving level.</p></div>
       <div><h3>Low-voltage warning</h3><p>Below 3.45 V the bar dims further. At 3.40 V it changes to a red blink that gradually grows to full brightness over two minutes.</p></div>
     </div>
   </section>
@@ -286,7 +286,7 @@
   const colors = ['#ff0000','#ff7800','#ffff00','#00ff00','#00ffff','#0000ff','#ff00ff','#ffffff'];
   let simulatorActive=false, powered=false, busy=false, checker=false, armed=false, mode=+(localStorage.simMode||0), full=+(localStorage.simFull||4170);
   let locked=false, idleTimer=0, downAt=[0,0], held=[false,false], unlockTimes=[], rapidTimes=[];
-  let special=-1, specialTimer=0, checkerTimer=0, armedTimer=0, holdTimer=0, saveTimer=0, warningSince=0, specialArmedAt=0, specialClicks=[];
+  let special=-1, specialTimer=0, checkerTimer=0, armedTimer=0, holdTimer=0, saveTimer=0, warningSince=0, specialArmedAt=0, specialClicks=[], checkerBoostArmed=false;
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   const volts=()=>+voltage.value;
   const setStatus=t=>status.textContent=t;
@@ -305,12 +305,23 @@
     leds.forEach((x,i)=>{if(i<n){const c=i<2?'255 91 104':i<5?'255 191 71':'92 242 154';x.style.background=`rgb(${c} / ${bright})`;x.style.boxShadow=`0 0 12px rgb(${c} / ${bright*.55})`}});
   }
   function normal(){showAll(colors[mode]);setStatus(locked?'Controls locked — use the unlock rhythm':`Color ${mode+1} · controls active`)}
+  async function normalRamp(){for(let elapsed=0;elapsed<1000;elapsed+=20){showAllScaled(colors[mode],.25+.75*elapsed/1000);await sleep(20)}normal()}
+  async function batteryPresentation(){const v=volts();setStatus(`Battery check · ${(v/1000).toFixed(2)} V`);bar(.25);await sleep(750);if(v<full)await blink('#ff0000',3)}
   function scheduleColorSave(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>{localStorage.simMode=mode;setStatus(`Color ${mode+1} · saved`)},1000)}
   function resetIdle(){clearTimeout(idleTimer);locked=false;idleTimer=setTimeout(()=>{if(powered&&special<0&&!checker&&!armed){locked=true;setStatus('Controls locked — use the unlock rhythm')}},10000)}
   async function blink(c,count,on=100,offMs=100){for(let i=0;i<count;i++){showAll(c);await sleep(on);off();await sleep(offMs)}}
-  async function startup(){busy=true;off();setStatus('White startup sweep');for(let i=0;i<7;i++){leds[i].style.background='#dcecff';await sleep(50)};const v=volts();setStatus(`Battery check · ${(v/1000).toFixed(2)} V`);if(v>=full)await blink('#00ff55',3);else{bar();await sleep(750)}busy=false;normal();resetIdle()}
-  function startChecker(){checker=true;warningSince=0;clearTimeout(idleTimer);setStatus('Battery checker mode');clearInterval(checkerTimer);checkerTimer=setInterval(()=>{const v=volts();if(v>3400){warningSince=0;let level=v>=3450?.02:.004+(v-3400)/50*.016;const pressed=held.findIndex(Boolean);if(pressed>=0)level+=Math.min(1,(performance.now()-downAt[pressed])/3000)*(1-level);bar(level);setStatus(`Battery checker · ${(v/1000).toFixed(2)} V${pressed>=0?' · brightness boost':''}`)}else{if(!warningSince)warningSince=performance.now();const level=.02+Math.min(1,(performance.now()-warningSince)/120000)*.98;if(performance.now()%1000<200)showAll(`rgb(255 0 0 / ${level})`);else off();setStatus(`Low-voltage warning · ${(v/1000).toFixed(2)} V`)}},50)}
-  async function powerOn(startHeld=-1){if(powered)return;powered=true;powerButton.textContent='Power: on';await startup();if(startHeld>=0&&held[startHeld]){const until=downAt[startHeld]+2000;while(held[startHeld]&&performance.now()<until){bar();setStatus('Keep holding to enter battery checker…');await sleep(100)}if(held[startHeld])startChecker();else normal()}}
+  async function startup(startHeld=-1){
+    busy=true;off();setStatus('White startup sweep');
+    for(let i=0;i<7;i++){leds[i].style.background='#dcecff';await sleep(50)}
+    if(startHeld>=0&&held[startHeld]){
+      let heldMs=0;
+      while(held[startHeld]&&heldMs<2000){bar(.02+(.25-.02)*(1-heldMs/2000));setStatus('Keep holding to enter battery checker…');await sleep(50);heldMs+=50}
+      if(held[startHeld]){off();await sleep(80);bar(.02);await sleep(80);busy=false;startChecker();return}
+    }
+    await batteryPresentation();await normalRamp();busy=false;resetIdle()
+  }
+  function startChecker(){checker=true;checkerBoostArmed=false;warningSince=0;clearTimeout(idleTimer);setStatus('Battery checker mode');clearInterval(checkerTimer);checkerTimer=setInterval(()=>{const v=volts();const rawPressed=held.findIndex(Boolean);if(rawPressed<0)checkerBoostArmed=true;if(v>3400){warningSince=0;let level=v>=3450?.02:.004+(v-3400)/50*.016;const pressed=checkerBoostArmed?rawPressed:-1;if(pressed>=0)level+=Math.min(1,(performance.now()-downAt[pressed])/3000)*(1-level);bar(level);setStatus(`Battery checker · ${(v/1000).toFixed(2)} V${pressed>=0?' · brightness boost':''}`)}else{if(!warningSince)warningSince=performance.now();const level=.02+Math.min(1,(performance.now()-warningSince)/120000)*.98;if(performance.now()%1000<200)showAll(`rgb(255 0 0 / ${level})`);else off();setStatus(`Low-voltage warning · ${(v/1000).toFixed(2)} V`)}},50)}
+  async function powerOn(startHeld=-1){if(powered)return;powered=true;powerButton.textContent='Power: on';await startup(startHeld)}
   function powerOff(){powered=false;busy=false;checker=false;armed=false;locked=false;special=-1;clearTimeout(idleTimer);clearTimeout(saveTimer);clearInterval(specialTimer);clearInterval(checkerTimer);clearInterval(armedTimer);clearInterval(holdTimer);off();powerButton.textContent='Power: off';setStatus('Press either button to power on the simulation')}
   function unlockClick(now){const gap=unlockTimes.length?now-unlockTimes.at(-1):0;if(!unlockTimes.length||gap<75||gap>250)unlockTimes=[now];else unlockTimes.push(now);if(unlockTimes.length>=3){locked=false;unlockTimes=[];blink('#00ff66',1).then(normal);resetIdle()}}
   function rapidClick(now){const gap=rapidTimes.length?now-rapidTimes.at(-1):0;if(!rapidTimes.length||gap>150)rapidTimes=[now];else rapidTimes.push(now);if(rapidTimes.length>=10){rapidTimes=[];startSpecial(0)}}
@@ -328,7 +339,7 @@
     const now=performance.now();
     clearInterval(holdTimer);leds.forEach(x=>x.style.opacity='1');
     if(!powered){await powerOn();return} if(busy||checker)return;
-    if(armed){armed=false;clearInterval(armedTimer);normal();resetIdle();return}
+    if(armed){armed=false;clearInterval(armedTimer);busy=true;await batteryPresentation();await normalRamp();busy=false;resetIdle();return}
     if(special>=0){specialClick(now);return}
     if(locked){normal();leds[0].style.background='#253348';unlockClick(now);setTimeout(()=>{if(locked)normal()},300);return}
     resetIdle();

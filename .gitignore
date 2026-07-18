@@ -14,3 +14,11 @@ release/
 # OS/editor files
 .DS_Store
 Thumbs.db
+
+# Machine-local VS Code extension state
+.vscode/*.log
+.vscode/*.log.lock
+
+# Locally installed agent skill catalog
+.agents/
+skills-lock.json

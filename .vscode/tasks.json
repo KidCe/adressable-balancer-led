@@ -2,15 +2,17 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Keil: Build",
+            "label": "Firmware: Build",
             "type": "process",
-            "command": "C:\\Users\\NKits\\AppData\\Local\\Keil_v5\\UV4\\UV4.exe",
+            "command": "powershell.exe",
             "args": [
-                "-b",
-                "${workspaceFolder}\\AdressableBalancerLEDPY32F002b.uvprojx",
-                "-t",
-                "Target 1",
-                "-j0"
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}\\.vscode\\keil.ps1",
+                "-Action",
+                "Build"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -27,15 +29,17 @@
             }
         },
         {
-            "label": "Keil: Rebuild",
+            "label": "Firmware: Rebuild",
             "type": "process",
-            "command": "C:\\Users\\NKits\\AppData\\Local\\Keil_v5\\UV4\\UV4.exe",
+            "command": "powershell.exe",
             "args": [
-                "-r",
-                "${workspaceFolder}\\AdressableBalancerLEDPY32F002b.uvprojx",
-                "-t",
-                "Target 1",
-                "-j0"
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}\\.vscode\\keil.ps1",
+                "-Action",
+                "Rebuild"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -48,22 +52,36 @@
             }
         },
         {
-            "label": "PY32: Flash",
+            "label": "Firmware: Flash",
             "type": "process",
-            "command": "C:\\Users\\NKits\\AppData\\Local\\Keil_v5\\UV4\\UV4.exe",
+            "command": "powershell.exe",
             "args": [
-                "-f",
-                "${workspaceFolder}\\AdressableBalancerLEDPY32F002b.uvprojx",
-                "-t",
-                "Target 1",
-                "-j0"
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}\\.vscode\\keil.ps1",
+                "-Action",
+                "Flash"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
             },
             "problemMatcher": [],
-            "dependsOn": "Keil: Build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": true
+            }
+        },
+        {
+            "label": "Firmware: Build and Flash",
             "dependsOrder": "sequence",
+            "dependsOn": [
+                "Firmware: Build",
+                "Firmware: Flash"
+            ],
+            "problemMatcher": [],
             "presentation": {
                 "reveal": "always",
                 "panel": "shared",
